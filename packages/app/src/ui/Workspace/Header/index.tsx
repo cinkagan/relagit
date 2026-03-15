@@ -1,6 +1,7 @@
 import { For, JSX, Show, createEffect, createSignal } from 'solid-js';
 
 import { Branch } from '@app/modules/git/branches';
+import { StashEntry } from '@app/modules/git/stash';
 import { t } from '@app/modules/i18n';
 import { Reffable } from '@app/shared';
 import DraftStore from '@app/stores/draft';
@@ -140,7 +141,8 @@ export default () => {
 			return aGit.indexOf(search) - bGit.indexOf(search);
 		});
 	};
-	const [stashes, setStashes] = createSignal<Record<number, string[]> | null>(null);
+	const [stashes, setStashes] = createSignal<StashEntry[] | null>(null);
+	const stashPickerSignal = createSignal(false);
 	const [status, setStatus] = createSignal<'publish' | 'diverged' | 'ahead' | 'behind' | null>(
 		null
 	);
@@ -470,79 +472,182 @@ export default () => {
 					}}
 				/>
 			</Menu>
-			<Show when={Object.keys(stashes() || {}).length > 0}>
-				<Menu
-					interfaceId="workspace-pop-stash"
-					items={[
-						{
-							type: 'item',
-							label: t('git.removeStash'),
-							disabled: !repository(),
-							onClick: async () => {
-								if (!repository()) return;
+			<Show when={(stashes() || []).length > 0}>
+				<Popout
+					position="bottom"
+					align="end"
+				open={stashPickerSignal}
+				body={() => (
+					<div class="stash-picker">
+						<div class="stash-picker__label" tabIndex={0}>
+							{t(
+								'git.stashedChanges',
+								{
+									stashCount: stashes()!.length,
+									count: t(
+										'git.files',
+										{
+											count: stashes()![0].files.length
+										},
+										stashes()![0].files.length
+									)
+								},
+								stashes()!.length
+							)}
+						</div>
+						<div class="stash-picker__list">
+							<For each={stashes()}>
+								{(stash) => (
+									<Menu
+										interfaceId="workspace-stash-item"
+										items={[
+											{
+												type: 'item',
+												label: t('git.popStash'),
+												onClick: async () => {
+													if (!repository()) return;
 
-								if (Object.keys(stashes() || {}).length === 0) return;
+													setStashActioning(true);
 
-								setStashActioning(true);
+													try {
+														await Git.PopStash(
+															LocationStore.selectedRepository,
+															stash.index
+														);
 
-								try {
-									await Git.RemoveStash(LocationStore.selectedRepository, 0);
+														triggerWorkflow(
+															'stash_pop',
+															LocationStore.selectedRepository!
+														);
 
-									setStashActioning(false);
+														stashPickerSignal[1](false);
 
-									refetchRepository(LocationStore.selectedRepository);
-								} catch (e) {
-									showErrorModal(e, 'error.git');
+														refetchRepository(
+															LocationStore.selectedRepository
+														);
+													} catch (e) {
+														showErrorModal(e, 'error.git');
+														error(e);
+													} finally {
+														setStashActioning(false);
+													}
+												}
+											},
+											{
+												type: 'item',
+												label: t('git.removeStash'),
+												color: 'danger',
+												onClick: async () => {
+													if (!repository()) return;
 
-									error(e);
-								}
-							}
-						}
-					]}
-				>
+													setStashActioning(true);
+
+													try {
+														await Git.RemoveStash(
+															LocationStore.selectedRepository,
+															stash.index
+														);
+
+														refetchRepository(
+															LocationStore.selectedRepository
+														);
+													} catch (e) {
+														showErrorModal(e, 'error.git');
+														error(e);
+													} finally {
+														setStashActioning(false);
+													}
+												}
+											}
+										]}
+									>
+										<button
+											class="stash-picker__list__item"
+											onClick={async () => {
+												if (!repository()) return;
+
+												stashPickerSignal[1](false);
+
+												try {
+													const stashDiff =
+														await Git.ShowStash(
+															LocationStore.selectedRepository,
+															stash.index
+														);
+
+													if (stashDiff) {
+														LocationStore.setStashOpen(true);
+														LocationStore.setSelectedCommit({
+															hash: `stash@{${stash.index}}`,
+															refs: '',
+															parent: '',
+															message:
+																stash.message ||
+																`stash@{${stash.index}}`,
+															author: stash.branch,
+															date: '',
+															files: stashDiff.files.length,
+															insertions: 0,
+															deletions: 0
+														});
+														LocationStore.setSelectedCommitFiles({
+															hash: `stash@{${stash.index}}`,
+															files: stashDiff.files
+														});
+														LocationStore.setSelectedCommitFile(
+															stashDiff.files[0]
+														);
+													}
+												} catch (e) {
+													showErrorModal(e, 'error.git');
+													error(e);
+												}
+											}}
+										>
+											<div class="stash-picker__list__item__content">
+												<div class="stash-picker__list__item__content__message">
+													{stash.message ||
+														`stash@${stash.index}`}
+												</div>
+												<div class="stash-picker__list__item__content__meta">
+													{stash.branch}
+												</div>
+											</div>
+											<div class="stash-picker__list__item__info">
+												{t(
+													'git.files',
+													{ count: stash.files.length },
+													stash.files.length
+												)}
+											</div>
+										</button>
+									</Menu>
+								)}
+							</For>
+						</div>
+					</div>
+				)}
+			>
+				{(p) => (
 					<PanelButton
+						ref={p.ref}
 						icon="file-directory"
 						iconVariant={iconVariant()}
-						id="workspace-pop-stash"
-						onClick={async () => {
-							if (!repository()) return;
-
-							if (Object.keys(stashes() || {}).length === 0) return;
-
-							setStashActioning(true);
-
-							try {
-								await Git.PopStash(LocationStore.selectedRepository, 0);
-
-								triggerWorkflow('stash_pop', LocationStore.selectedRepository!);
-
-								setStashActioning(false);
-
-								refetchRepository(LocationStore.selectedRepository);
-							} catch (e) {
-								showErrorModal(e, 'error.git');
-
-								error(e);
-							}
-						}}
+						id="workspace-stash-picker"
 						loading={stashActioning()}
-						label={t('git.popStash')}
+						className={p.open() ? 'active' : ''}
+						label={t('git.stashes')}
 						detail={t(
-							'git.stashedChanges',
-							{
-								stashCount: Object.keys(stashes()!).length,
-								count: t(
-									'git.files',
-									{
-										count: stashes()![0].length
-									},
-									stashes()![0].length
-								)
-							},
-							Object.keys(stashes()!).length
+							'git.stashCount',
+							{ count: stashes()!.length },
+							stashes()!.length
 						)}
+						onMouseDown={(e) => {
+							p.toggle(e);
+						}}
 					/>
-				</Menu>
+				)}
+			</Popout>
 			</Show>
 			<div class="workspace__header__spacer" />
 			<Popout
