@@ -1,0 +1,294 @@
+@use '../../../illyrica/mixins';
+
+// Override codeview__empty padding when CommitGraph is inside
+.codeview__empty:has(.commit-graph) {
+	padding: 0;
+}
+
+.commit-graph {
+	display: flex;
+	width: 100%;
+	height: 100%;
+	flex: 1;
+	overflow: hidden;
+
+	// ── Main graph area ──
+	&__main {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+		overflow: hidden;
+	}
+
+	&__header {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 10px 16px;
+		border-bottom: 1px solid var(--separator-secondary);
+		color: var(--color-secondary);
+		font-size: 0.85rem;
+		flex-shrink: 0;
+
+		&__branch {
+			color: var(--color-primary);
+			font-weight: 600;
+		}
+
+		&__count {
+			margin-left: auto;
+			opacity: 0.6;
+		}
+
+		&__action {
+			display: flex;
+			align-items: center;
+			gap: 4px;
+			border: none;
+			background: var(--bg-secondary);
+			color: var(--color-secondary);
+			padding: 2px 8px;
+			border-radius: 4px;
+			cursor: pointer;
+			font-size: 0.8rem;
+
+			&:hover {
+				background: var(--bg-hover);
+				color: var(--color-primary);
+			}
+		}
+	}
+
+	&__list {
+		flex: 1;
+		overflow-y: auto;
+		overflow-x: hidden;
+	}
+
+	// ── Each commit row ──
+	&__row {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 0 16px 0 0;
+		height: 32px;
+		width: 100%;
+		border: none;
+		background: none;
+		color: var(--color-primary);
+		text-align: left;
+		cursor: pointer;
+		transition: background 0.1s;
+
+		@include mixins.focusable;
+
+		&:hover {
+			background: var(--bg-hover);
+		}
+
+		&--active {
+			background: var(--bg-active);
+		}
+
+		&--selected {
+			background: color-mix(in srgb, var(--color-blue-500) 10%, transparent 90%);
+		}
+	}
+
+	// ── Rail with lane lines ──
+	&__rail {
+		position: relative;
+		height: 100%;
+		flex-shrink: 0;
+
+		&__lane {
+			position: absolute;
+			top: 0;
+			width: 2px;
+			height: 100%;
+			opacity: 0.3;
+		}
+	}
+
+	// ── Commit dot ──
+	&__dot {
+		position: absolute;
+		top: 50%;
+		width: 10px;
+		height: 10px;
+		border-radius: 50%;
+		border: 2px solid;
+		transform: translateY(-50%);
+		z-index: 1;
+	}
+
+	// ── Commit info ──
+	&__info {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		min-width: 0;
+		overflow: hidden;
+
+		&__message {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			font-size: 0.85rem;
+		}
+
+		&__ref {
+			flex-shrink: 0;
+			font-size: 0.7rem;
+			font-weight: 600;
+			padding: 2px 8px;
+			border-radius: 4px;
+			white-space: nowrap;
+		}
+	}
+
+	// ── Meta (hash, date) ──
+	&__meta {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		flex-shrink: 0;
+		font-size: 0.8rem;
+		color: var(--color-secondary);
+
+		&__hash {
+			font-family: var(--font-mono);
+			opacity: 0.7;
+		}
+
+		&__date {
+			min-width: 80px;
+			text-align: right;
+			white-space: nowrap;
+		}
+	}
+
+	// ── Right panel: changed files ──
+	&__files {
+		width: 280px;
+		min-width: 280px;
+		border-left: 1px solid var(--separator-secondary);
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+
+		&__header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+			padding: 8px 12px;
+			border-bottom: 1px solid var(--separator-secondary);
+			flex-shrink: 0;
+
+			&__info {
+				display: flex;
+				flex-direction: column;
+				gap: 2px;
+				min-width: 0;
+				flex: 1;
+			}
+
+			&__message {
+				font-size: 0.85rem;
+				font-weight: 500;
+				color: var(--color-primary);
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			&__hash {
+				font-size: 0.75rem;
+				color: var(--color-secondary);
+				font-family: var(--font-mono);
+			}
+
+			&__close {
+				border: none;
+				background: none;
+				color: var(--color-secondary);
+				cursor: pointer;
+				padding: 4px;
+				border-radius: 4px;
+				display: flex;
+				flex-shrink: 0;
+
+				&:hover {
+					background: var(--bg-hover);
+					color: var(--color-primary);
+				}
+			}
+		}
+
+		&__list {
+			flex: 1;
+			overflow-y: auto;
+
+			.empty-state {
+				padding: 16px;
+				gap: 8px;
+
+				svg {
+					width: 24px;
+					height: 24px;
+					margin-bottom: 0;
+				}
+			}
+		}
+
+		&__item {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding: 6px 12px;
+			border-bottom: 1px solid var(--separator-secondary);
+			font-size: 0.85rem;
+			gap: 8px;
+
+			&__name {
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+				color: var(--color-primary);
+			}
+
+			&__path {
+				color: var(--color-secondary);
+			}
+
+			&__status {
+				font-family: var(--font-mono);
+				flex-shrink: 0;
+				font-size: 0.8rem;
+
+				&.added {
+					color: var(--status-added);
+				}
+
+				&.modified {
+					color: var(--status-modified);
+				}
+
+				&.renamed {
+					color: var(--status-renamed);
+				}
+
+				&.deleted {
+					color: var(--status-deleted);
+				}
+
+				&.unknown {
+					color: var(--status-untracked);
+				}
+			}
+		}
+	}
+}

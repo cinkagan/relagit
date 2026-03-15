@@ -29,6 +29,7 @@ import SettingsStore from '~/app/src/stores/settings';
 import EmptyState from '@ui/Common/EmptyState';
 import Icon from '@ui/Common/Icon';
 
+import CommitGraph from '../CommitGraph';
 import ImageView from './ImageView';
 import SubmoduleView from './SubmoduleView';
 import { BINARY_EXTENSIONS, IMAGE_EXTENSIONS } from './constants';
@@ -365,12 +366,7 @@ export default (props: CodeViewProps) => {
 											when={changes()?.length}
 											fallback={
 												<div class="codeview__empty">
-													<EmptyState
-														horizontal
-														detail={t('codeview.noChanges')}
-														hint={t('codeview.noChangesHint')}
-														image={EmptyState.Images.NothingHere}
-													/>
+													<CommitGraph />
 													<div class="codeview__empty__actions">
 														<button
 															class="codeview__empty__actions__action"

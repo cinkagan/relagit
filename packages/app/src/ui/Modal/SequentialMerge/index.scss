@@ -1,0 +1,453 @@
+@use '../../../illyrica/mixins';
+
+.seq-merge {
+	display: flex;
+	gap: 0;
+	min-height: 340px;
+
+	// ════════════════════════════════════
+	// Left panel: branch picker
+	// ════════════════════════════════════
+	&__picker {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+
+		&__search {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 8px 12px;
+			margin-bottom: 8px;
+			border-radius: 8px;
+			background: var(--bg-tertiary);
+			border: 1px solid var(--separator-secondary);
+			color: var(--color-secondary);
+			transition: border-color 0.15s;
+
+			&:focus-within {
+				border-color: var(--color-blue-500);
+			}
+
+			input {
+				border: none;
+				background: none;
+				color: var(--color-primary);
+				outline: none;
+				flex: 1;
+				font-size: 0.9rem;
+				min-width: 0;
+
+				&::placeholder {
+					color: var(--color-secondary);
+				}
+			}
+
+			&__clear {
+				border: none;
+				background: none;
+				color: var(--color-secondary);
+				cursor: pointer;
+				padding: 2px;
+				border-radius: 4px;
+				display: flex;
+
+				&:hover {
+					color: var(--color-primary);
+				}
+			}
+		}
+
+		&__list {
+			flex: 1;
+			overflow-y: auto;
+			display: flex;
+			flex-direction: column;
+			gap: 1px;
+		}
+
+		&__empty {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			gap: 8px;
+			padding: 32px;
+			color: var(--color-secondary);
+			opacity: 0.6;
+			font-size: 0.9rem;
+		}
+	}
+
+	// ════════════════════════════════════
+	// Divider
+	// ════════════════════════════════════
+	&__divider {
+		width: 1px;
+		background: var(--separator-secondary);
+		margin: 0 20px;
+		flex-shrink: 0;
+	}
+
+	// ════════════════════════════════════
+	// Right panel: merge tree
+	// ════════════════════════════════════
+	&__tree {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+
+		&__header {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding-bottom: 12px;
+			margin-bottom: 8px;
+			border-bottom: 1px solid var(--separator-secondary);
+			color: var(--color-secondary);
+			font-size: 0.85rem;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+
+			&__count {
+				margin-left: auto;
+				background: var(--color-brand);
+				color: var(--color-on-brand, #fff);
+				font-size: 0.7rem;
+				font-weight: 700;
+				padding: 2px 8px;
+				border-radius: 10px;
+				min-width: 20px;
+				text-align: center;
+			}
+		}
+
+		&__body {
+			flex: 1;
+			overflow-y: auto;
+
+			.empty-state {
+				padding: 24px 16px;
+				gap: 12px;
+
+				svg {
+					width: 32px;
+					height: 32px;
+					margin-bottom: 0;
+				}
+			}
+		}
+	}
+
+	// ════════════════════════════════════
+	// Git graph (CSS-only tree)
+	// ════════════════════════════════════
+	&__graph {
+		display: flex;
+		flex-direction: column;
+		padding: 8px 0;
+
+		// ── Each row (node) in the graph ──
+		&__node {
+			display: flex;
+			align-items: center;
+			min-height: 40px;
+
+			&--merge {
+				padding-left: 0;
+			}
+		}
+
+		// ── Left rail: dot + vertical line ──
+		&__rail {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			width: 28px;
+			flex-shrink: 0;
+			align-self: stretch;
+			position: relative;
+
+			&__line {
+				width: 2px;
+				flex: 1;
+				background: var(--color-brand);
+			}
+		}
+
+		// ── Dots on the rail ──
+		&__dot {
+			width: 14px;
+			height: 14px;
+			border-radius: 50%;
+			flex-shrink: 0;
+			z-index: 2;
+			border: 2px solid var(--bg-primary);
+
+			&--current {
+				background: var(--color-brand);
+			}
+
+			&--merge {
+				background: var(--color-green-500);
+			}
+
+			&--result {
+				background: var(--color-brand);
+			}
+		}
+
+		// ── Horizontal connector line (merge point → card) ──
+		&__connector {
+			width: 24px;
+			height: 2px;
+			background: var(--color-blue-500);
+			flex-shrink: 0;
+		}
+
+		// ── Tag label (top / bottom branch labels) ──
+		&__tag {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			padding: 4px 12px;
+			border-radius: 6px;
+			font-size: 0.85rem;
+			font-weight: 600;
+			margin-left: 8px;
+			white-space: nowrap;
+
+			&--current {
+				background: var(--bg-tertiary);
+				border: 1px solid var(--separator-secondary);
+				color: var(--color-brand);
+			}
+
+			&--result {
+				background: var(--bg-active);
+				border: 1px dashed var(--color-brand);
+				color: var(--color-brand);
+			}
+		}
+
+		// ── Branch card (merge row) ──
+		&__card {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 8px 12px;
+			border-radius: 8px;
+			background: var(--bg-tertiary);
+			border: 1px solid var(--separator-secondary);
+			flex: 1;
+			min-width: 0;
+			transition: border-color 0.15s, background 0.15s;
+
+			.seq-merge__graph__node.hover & {
+				border-color: var(--color-blue-500);
+				background: var(--bg-quaternary, var(--bg-secondary));
+			}
+
+			&__order {
+				width: 22px;
+				height: 22px;
+				border-radius: 50%;
+				background: var(--color-blue-500);
+				color: #fff;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				font-size: 0.7rem;
+				font-weight: 700;
+				flex-shrink: 0;
+			}
+
+			&__icon {
+				color: var(--color-secondary);
+				flex-shrink: 0;
+			}
+
+			&__name {
+				flex: 1;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+				color: var(--color-primary);
+				font-size: 0.9rem;
+			}
+
+			&__actions {
+				display: flex;
+				gap: 2px;
+				flex-shrink: 0;
+				opacity: 0;
+				transition: opacity 0.15s;
+
+				.seq-merge__graph__node.hover & {
+					opacity: 1;
+				}
+
+				button {
+					border: none;
+					background: none;
+					color: var(--color-secondary);
+					cursor: pointer;
+					padding: 4px;
+					border-radius: 6px;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					transition: background 0.1s, color 0.1s;
+
+					&:hover:not(:disabled) {
+						background: var(--bg-hover);
+						color: var(--color-primary);
+					}
+
+					&:disabled {
+						opacity: 0.25;
+						cursor: default;
+					}
+				}
+			}
+
+			&__remove:hover:not(:disabled) {
+				color: var(--color-red-500) !important;
+			}
+		}
+	}
+
+	// ════════════════════════════════════
+	// Group header (collapsible)
+	// ════════════════════════════════════
+	&__group {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 6px 8px;
+		margin: 4px 0 2px;
+		font-size: 0.8rem;
+		font-weight: 600;
+		color: var(--color-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		background: none;
+		border: none;
+		border-radius: 6px;
+		cursor: pointer;
+		width: 100%;
+		text-align: left;
+		user-select: none;
+		transition: background 0.1s;
+
+		&:hover {
+			background: var(--bg-hover);
+		}
+
+		&__label {
+			flex: 1;
+		}
+
+		&__count {
+			font-weight: 400;
+			opacity: 0.6;
+			font-size: 0.75rem;
+			background: var(--bg-secondary);
+			padding: 1px 6px;
+			border-radius: 8px;
+		}
+	}
+
+	// ════════════════════════════════════
+	// Branch item (left panel)
+	// ════════════════════════════════════
+	&__branch {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 6px 8px 6px 12px;
+		border-radius: 6px;
+		border: none;
+		background: none;
+		color: var(--color-primary);
+		cursor: pointer;
+		text-align: left;
+		width: 100%;
+		transition: background 0.1s;
+
+		@include mixins.focusable;
+
+		&:hover {
+			background: var(--bg-hover);
+		}
+
+		&--selected {
+			background: var(--bg-active);
+
+			.seq-merge__branch__checkbox {
+				color: var(--color-brand);
+			}
+		}
+
+		&__checkbox {
+			width: 16px;
+			height: 16px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			flex-shrink: 0;
+			color: var(--color-secondary);
+			transition: color 0.1s;
+		}
+
+		&__info {
+			flex: 1;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+			min-width: 0;
+		}
+
+		&__name {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			font-size: 0.9rem;
+		}
+
+		&__path {
+			color: var(--color-secondary);
+		}
+
+		&__meta {
+			font-size: 0.8rem;
+			color: var(--color-secondary);
+			white-space: nowrap;
+			flex-shrink: 0;
+		}
+	}
+}
+
+// ════════════════════════════════════
+// Responsive
+// ════════════════════════════════════
+@container (width <= 550px) {
+	.seq-merge {
+		flex-direction: column;
+
+		&__divider {
+			width: 100%;
+			height: 1px;
+			margin: 12px 0;
+		}
+
+		&__picker__list,
+		&__tree__body {
+			max-height: 200px;
+		}
+	}
+}

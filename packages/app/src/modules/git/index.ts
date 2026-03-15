@@ -13,6 +13,13 @@ export { Commit } from './commit';
 export { Branch } from './branch';
 export { Revert } from './revert';
 export { Merge, MergeAbort } from './merge';
+export {
+	startSequentialMerge,
+	continueSequentialMerge,
+	abortSequentialMerge,
+	mergeQueue,
+	isSequentialMergeActive
+} from './sequential-merge';
 export { Graph } from './graph';
 export { Clone } from './clone';
 export { Blame } from './blame';

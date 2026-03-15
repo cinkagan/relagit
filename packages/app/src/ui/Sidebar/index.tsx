@@ -15,6 +15,7 @@ import Header from '@ui/Sidebar/Header';
 import Item from '@ui/Sidebar/Item';
 
 import { showErrorModal } from '../Modal';
+import BranchList from './BranchList';
 import Commit from './Commit';
 import Footer from './Footer';
 
@@ -81,18 +82,7 @@ export default (props: SidebarProps) => {
 		>
 			<Header />
 			<Show when={historyOpen()}>
-				<div class="sidebar__commits" ref={setCommitsRef}>
-					<Show
-						when={commits()?.length}
-						fallback={<EmptyState hint={t('sidebar.noCommits')} />}
-					>
-						<For each={commits()}>
-							{(commit) => {
-								return <Commit {...commit} />;
-							}}
-						</For>
-					</Show>
-				</div>
+				<BranchList />
 			</Show>
 			<Show when={!historyOpen()}>
 				<div

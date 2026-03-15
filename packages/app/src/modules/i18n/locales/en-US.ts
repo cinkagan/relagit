@@ -352,6 +352,12 @@ export default {
 			view: 'View {{name}}',
 			issue: ['Issue', 'Issues'],
 			pull: ['Pull Request', 'Pull Requests']
+		},
+		commitGraph: {
+			viewDetails: 'View Details',
+			cherryPick: 'Cherry Pick',
+			cherryPickSelected: 'Cherry Pick {{count}} commits',
+			copySelectedSha: 'Copy {{count}} SHAs'
 		}
 	},
 	palette: {
@@ -400,7 +406,20 @@ export default {
 				'There are unresolved merge conflicts that need to be resolved before you can switch branches.',
 			hint: 'Resolve the conflicts in your files and commit, or abort the merge to discard all changes.',
 			abort: 'Abort Merge',
-			abortHint: 'This will discard all merge changes and return to the previous state.'
+			abortHint: 'This will discard all merge changes and return to the previous state.',
+			continue: 'Continue Merge Queue',
+			sequentialProgress: 'Merging {{current}} of {{total}}',
+			sequentialCompleted: '{{count}} branch(es) merged successfully'
+		},
+		sequentialMerge: {
+			title: 'Sequential Merge into {{current}}',
+			local: 'Local',
+			remote: 'Remote',
+			mergeOrder: 'Merge Queue',
+			start: 'Start Merge',
+			sequentialMerge: 'Sequential Merge',
+			emptyQueue: 'No branches selected',
+			emptyQueueHint: 'Select branches from the left to add them to the merge queue.'
 		},
 		information: {
 			metadata: 'Metadata',

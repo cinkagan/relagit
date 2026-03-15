@@ -21,6 +21,7 @@ const LocationStore = new (class LocationStore extends GenericStore {
 	#selectedCommitFile: PastCommit['files'][number] | undefined = undefined;
 	#showingPalette = false;
 	#imageDisplayMode: 'sidebyside' | 'difference' = 'sidebyside';
+	#selectedHistoryBranch: string | undefined = undefined;
 
 	#isRefetchingSelectedRepository = false;
 
@@ -90,6 +91,15 @@ const LocationStore = new (class LocationStore extends GenericStore {
 
 	get imageDisplayMode() {
 		return this.#imageDisplayMode ?? 'sidebyside';
+	}
+
+	get selectedHistoryBranch() {
+		return this.#selectedHistoryBranch;
+	}
+
+	setSelectedHistoryBranch(branch: string | undefined) {
+		this.#selectedHistoryBranch = branch;
+		this.emit();
 	}
 
 	setShowingPalette(showing: boolean | ((s: boolean) => boolean)) {

@@ -15,6 +15,7 @@ import Header from '@ui/Workspace/Header';
 import Icon from '../Common/Icon';
 import Menu from '../Menu';
 import CodeView from './CodeView';
+import CommitGraph from './CommitGraph';
 
 import './index.scss';
 
@@ -46,7 +47,6 @@ export default (props: WorkspaceProps) => {
 	const commit = createStoreListener([LocationStore], () => LocationStore.selectedCommit);
 	const historyOpen = createStoreListener([LocationStore], () => LocationStore.historyOpen);
 	const stashOpen = createStoreListener([LocationStore], () => LocationStore.stashOpen);
-	const diffOpen = () => historyOpen() || stashOpen();
 	const selectedCommitFile = createStoreListener(
 		[LocationStore],
 		() => LocationStore.selectedCommitFile
@@ -56,24 +56,27 @@ export default (props: WorkspaceProps) => {
 	return (
 		<div classList={{ workspace: true, 'sidebar-active': props.sidebar }}>
 			<Header />
-			<Show when={diffOpen() && commit()}>
+			{/* History mode: full CommitGraph view */}
+			<Show when={historyOpen()}>
+				<CommitGraph />
+			</Show>
+			{/* Stash mode: old commit detail + files view */}
+			<Show when={stashOpen() && commit()}>
 				<div class="workspace__commit">
 					<div class="workspace__commit__top">
 						<div class="workspace__commit__message">{commit()!.message}</div>
-						<Show when={stashOpen()}>
-							<button
-								class="workspace__commit__close"
-								aria-label={t('modal.close')}
-								onClick={() => {
-									LocationStore.setStashOpen(false);
-									LocationStore.setSelectedCommit(undefined);
-									LocationStore.setSelectedCommitFiles(undefined);
-									LocationStore.setSelectedCommitFile(undefined);
-								}}
-							>
-								<Icon name="x" />
-							</button>
-						</Show>
+						<button
+							class="workspace__commit__close"
+							aria-label={t('modal.close')}
+							onClick={() => {
+								LocationStore.setStashOpen(false);
+								LocationStore.setSelectedCommit(undefined);
+								LocationStore.setSelectedCommitFiles(undefined);
+								LocationStore.setSelectedCommitFile(undefined);
+							}}
+						>
+							<Icon name="x" />
+						</button>
 					</div>
 					<div class="workspace__commit__details">
 						<div class="workspace__commit__details__author">{commit()!.author}</div>
@@ -112,8 +115,9 @@ export default (props: WorkspaceProps) => {
 					</div>
 				</div>
 			</Show>
+			<Show when={!historyOpen()}>
 			<div class="workspace__container">
-				<Show when={diffOpen() && commitFiles()}>
+				<Show when={stashOpen() && commitFiles()}>
 					<div class="workspace__container__files">
 						<For each={commitFiles()?.files}>
 							{(commitFile) => (
@@ -281,21 +285,21 @@ export default (props: WorkspaceProps) => {
 					<div class="workspace__container__main__file">
 						<div class="workspace__container__main__file__path">
 							<Show
-								when={(diffOpen() ?
+								when={(stashOpen() ?
 									selectedCommitFile()?.path || ''
 								:	file()?.file?.path || ''
 								).endsWith('/')}
 								fallback={
-									((diffOpen() ?
+									((stashOpen() ?
 										selectedCommitFile()?.path
 									:	file()?.file?.path) || '') + '/'
 								}
 							>
-								{diffOpen() ? selectedCommitFile()?.path : file()?.file?.path}
+								{stashOpen() ? selectedCommitFile()?.path : file()?.file?.path}
 							</Show>
 						</div>
 						<div class="workspace__container__main__file__name">
-							{diffOpen() ? selectedCommitFile()?.filename : file()?.file?.name}
+							{stashOpen() ? selectedCommitFile()?.filename : file()?.file?.name}
 						</div>
 					</div>
 					<CodeView
@@ -309,6 +313,7 @@ export default (props: WorkspaceProps) => {
 					/>
 				</div>
 			</div>
+			</Show>
 		</div>
 	);
 };

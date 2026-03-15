@@ -49,11 +49,20 @@ export const Show = async (
 ): Promise<PastCommit | undefined> => {
 	if (!repository) return undefined;
 
-	const res = await Git({
+	let res = await Git({
 		directory: repository,
 		command: 'show',
 		args: hash ? [hash, '--pretty=format:'] : ['--pretty=format:']
 	});
+
+	// Merge commits produce no diff by default, retry with --first-parent
+	if (!res.trim() && hash) {
+		res = await Git({
+			directory: repository,
+			command: 'show',
+			args: [hash, '--pretty=format:', '--first-parent']
+		});
+	}
 
 	const commit: PastCommit = {
 		hash,

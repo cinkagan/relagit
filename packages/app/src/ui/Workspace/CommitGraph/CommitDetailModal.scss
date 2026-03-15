@@ -1,0 +1,293 @@
+@use '../../../illyrica/mixins';
+
+// Force modal to fill its max-height so flex children can calculate height
+.modal:has(.commit-detail) {
+	height: min(80%, 660px) !important;
+}
+
+// Prevent modal body from scrolling; let panels scroll independently
+.modal__body:has(.commit-detail) {
+	overflow: hidden;
+	padding: 0;
+	min-height: 0;
+}
+
+.commit-detail {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	gap: 0;
+
+	// ── Commit info banner ──
+	&__banner {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 16px;
+		padding: 20px 24px;
+		background: var(--bg-secondary);
+		border-bottom: 1px solid var(--separator-secondary);
+		flex-shrink: 0;
+
+		&__main {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+			min-width: 0;
+			flex: 1;
+		}
+
+		&__message {
+			font-size: 1.1rem;
+			font-weight: 500;
+			color: var(--color-primary);
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		&__meta {
+			display: flex;
+			align-items: center;
+			gap: 16px;
+			font-size: 0.8rem;
+			color: var(--color-secondary);
+			flex-wrap: wrap;
+
+			> span {
+				display: flex;
+				align-items: center;
+				gap: 4px;
+				white-space: nowrap;
+			}
+		}
+
+		&__hash {
+			font-family: var(--font-mono);
+		}
+
+		&__badge {
+			font-size: 0.7rem;
+			font-weight: 600;
+			padding: 2px 8px;
+			border-radius: 4px;
+			text-transform: uppercase;
+			letter-spacing: 0.3px;
+
+			&--merge {
+				background: color-mix(in srgb, var(--color-violet-500) 15%, transparent 85%);
+				color: var(--color-violet-500);
+			}
+		}
+
+		&__stats {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			flex-shrink: 0;
+			font-size: 0.8rem;
+			padding: 6px 12px;
+			background: var(--bg-tertiary);
+			border-radius: 6px;
+			border: 1px solid var(--separator-secondary);
+
+			&__files {
+				color: var(--color-secondary);
+			}
+
+			&__add {
+				color: var(--color-green-500);
+				font-family: var(--font-mono);
+				font-weight: 600;
+			}
+
+			&__del {
+				color: var(--color-red-500);
+				font-family: var(--font-mono);
+				font-weight: 600;
+			}
+		}
+	}
+
+	// ── Loading ──
+	&__loading {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	// ── Split layout ──
+	&__split {
+		display: flex;
+		flex: 1;
+		overflow: hidden;
+		min-height: 0;
+	}
+
+	// ── File list sidebar ──
+	&__sidebar {
+		width: 260px;
+		min-width: 260px;
+		display: flex;
+		flex-direction: column;
+		border-right: 1px solid var(--separator-secondary);
+		overflow: hidden;
+
+		&__header {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 10px 16px;
+			font-size: 0.8rem;
+			font-weight: 600;
+			color: var(--color-secondary);
+			text-transform: uppercase;
+			letter-spacing: 0.3px;
+			border-bottom: 1px solid var(--separator-secondary);
+			flex-shrink: 0;
+			user-select: none;
+		}
+
+		&__list {
+			flex: 1;
+			overflow-y: auto;
+		}
+	}
+
+	// ── File item ──
+	&__file {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 7px 16px;
+		width: 100%;
+		border: none;
+		border-bottom: 1px solid var(--separator-secondary);
+		background: none;
+		color: var(--color-primary);
+		cursor: pointer;
+		text-align: left;
+		font-size: 0.85rem;
+		transition: background 0.1s;
+
+		@include mixins.focusable;
+
+		&:hover {
+			background: var(--bg-hover);
+		}
+
+		&--active {
+			background: var(--bg-active);
+			border-left: 2px solid var(--color-brand);
+			padding-left: 14px;
+		}
+
+		&__icon {
+			width: 16px;
+			height: 16px;
+			flex-shrink: 0;
+		}
+
+		&__info {
+			flex: 1;
+			display: flex;
+			align-items: center;
+			overflow: hidden;
+			min-width: 0;
+		}
+
+		&__from {
+			color: var(--color-secondary);
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		&__arrow {
+			margin: 0 4px;
+			opacity: 0.5;
+			flex-shrink: 0;
+		}
+
+		&__path {
+			color: var(--color-secondary);
+			white-space: nowrap;
+		}
+
+		&__name {
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		&__status {
+			font-family: var(--font-mono);
+			font-size: 0.8rem;
+			flex-shrink: 0;
+			padding: 2px 6px;
+			border-radius: 4px;
+
+			&.added {
+				color: var(--status-added);
+				background: color-mix(in srgb, var(--status-added) 10%, transparent 90%);
+			}
+
+			&.modified {
+				color: var(--status-modified);
+				background: color-mix(in srgb, var(--status-modified) 10%, transparent 90%);
+			}
+
+			&.renamed {
+				color: var(--status-renamed);
+				background: color-mix(in srgb, var(--status-renamed) 10%, transparent 90%);
+			}
+
+			&.deleted {
+				color: var(--status-deleted);
+				background: color-mix(in srgb, var(--status-deleted) 10%, transparent 90%);
+			}
+
+			&.unknown {
+				color: var(--status-untracked);
+			}
+		}
+	}
+
+	// ── Diff view ──
+	&__diff {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+		min-width: 0;
+
+		.empty-state {
+			padding: 32px;
+		}
+
+		&__header {
+			display: flex;
+			align-items: center;
+			padding: 8px 16px;
+			font-size: 0.85rem;
+			border-bottom: 1px solid var(--separator-secondary);
+			flex-shrink: 0;
+			user-select: none;
+			background: var(--bg-primary);
+
+			&__path {
+				color: var(--color-secondary);
+			}
+
+			&__name {
+				color: var(--color-primary);
+			}
+		}
+
+		&__content {
+			flex: 1;
+			overflow: auto;
+		}
+	}
+}

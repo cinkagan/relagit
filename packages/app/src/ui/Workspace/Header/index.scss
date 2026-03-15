@@ -315,6 +315,12 @@
 		}
 	}
 
+	&__actions {
+		display: flex;
+		flex-direction: column;
+		border-top: 1px solid var(--separator-secondary);
+	}
+
 	&__new {
 		padding: 8px 16px 12px;
 		color: var(--color-blue-500);
@@ -324,7 +330,6 @@
 		justify-content: flex-start;
 		gap: 6px;
 		background: none;
-		border-top: 1px solid var(--separator-secondary);
 		border: none;
 		width: 100%;
 

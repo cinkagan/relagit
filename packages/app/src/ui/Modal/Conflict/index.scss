@@ -15,4 +15,23 @@
 		font-size: 0.85rem;
 		margin-top: 4px;
 	}
+
+	&__sequential-info {
+		background: var(--bg-secondary);
+		border-radius: 6px;
+		padding: 12px;
+		margin-top: 8px;
+
+		&__progress {
+			color: var(--color-primary);
+			font-size: 0.9rem;
+			font-weight: 500;
+		}
+
+		&__completed {
+			color: var(--color-secondary);
+			font-size: 0.85rem;
+			margin-top: 4px;
+		}
+	}
 }

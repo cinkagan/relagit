@@ -27,6 +27,7 @@ import Tooltip from '@ui/Common/Tooltip';
 import { showCherryPickModal } from '@ui/Modal/CherryPick';
 import { showConflictModal } from '@ui/Modal/Conflict';
 import { showPublishModal } from '@ui/Modal/Publish';
+import { showSequentialMergeModal } from '@ui/Modal/SequentialMerge';
 
 import './index.scss';
 
@@ -928,19 +929,34 @@ export default () => {
 								</div>
 							</Show>
 						</div>
-						<button
-							class="branches-picker__new"
-							onClick={() => {
-								setHasNewBranchInput((v) => !v);
+						<div class="branches-picker__actions">
+							<button
+								class="branches-picker__new"
+								onClick={() => {
+									setHasNewBranchInput((v) => !v);
 
-								requestAnimationFrame(() => {
-									inputRef()?.querySelector('input')?.focus();
-								});
-							}}
-						>
-							<Icon name={hasNewBranchInput() ? 'fold-up' : 'plus'} />
-							{hasNewBranchInput() ? t('git.hide') : t('git.newBranch')}
-						</button>
+									requestAnimationFrame(() => {
+										inputRef()?.querySelector('input')?.focus();
+									});
+								}}
+							>
+								<Icon name={hasNewBranchInput() ? 'fold-up' : 'plus'} />
+								{hasNewBranchInput() ? t('git.hide') : t('git.newBranch')}
+							</button>
+							<button
+								class="branches-picker__new"
+								onClick={() => {
+									branchPickerSignal[1](false);
+									showSequentialMergeModal(
+										repository(),
+										branches() || []
+									);
+								}}
+							>
+								<Icon name="git-merge-queue" />
+								{t('modal.sequentialMerge.sequentialMerge')}
+							</button>
+						</div>
 					</div>
 				)}
 			>
