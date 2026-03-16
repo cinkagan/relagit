@@ -1,319 +1,44 @@
-import { For, Show } from 'solid-js';
-import { getIconForFilePath, getIconUrlForFilePath } from 'vscode-material-icons';
+import { Show, createSignal } from 'solid-js';
 
-import { openInEditor } from '@app/modules/editor';
-import { statusToAlpha } from '@app/modules/git/diff';
-import { t } from '@app/modules/i18n';
-import { openExternal, showItemInFolder } from '@app/modules/shell';
-import SettingsStore from '@app/stores/settings';
 import { createStoreListener } from '@stores/index';
 import LocationStore from '@stores/location';
 import RepositoryStore from '@stores/repository';
 
 import Header from '@ui/Workspace/Header';
-
-import Icon from '../Common/Icon';
-import Menu from '../Menu';
-import CodeView from './CodeView';
+import BranchPanel from './BranchPanel';
 import CommitGraph from './CommitGraph';
 
 import './index.scss';
 
-const path = window.Native.DANGEROUS__NODE__REQUIRE('path');
-const fs = window.Native.DANGEROUS__NODE__REQUIRE('fs');
-
-export interface WorkspaceProps {
-	sidebar: boolean;
-}
-
-export default (props: WorkspaceProps) => {
-	const repo = createStoreListener(
+export default () => {
+	const repository = createStoreListener(
 		[LocationStore, RepositoryStore],
-		() => RepositoryStore.getById(LocationStore.selectedRepository?.id)?.path
+		() => RepositoryStore.getById(LocationStore.selectedRepository?.id)
 	);
-	const file = createStoreListener([LocationStore], () => {
-		const repo = LocationStore.selectedRepository;
-		const file = LocationStore.selectedFile;
 
-		return {
-			file: file,
-			path: file && repo ? path.join(repo.path, file.path, file.name) : undefined
-		};
-	});
-	const commitFiles = createStoreListener(
-		[LocationStore],
-		() => LocationStore.selectedCommitFiles
-	);
-	const commit = createStoreListener([LocationStore], () => LocationStore.selectedCommit);
-	const historyOpen = createStoreListener([LocationStore], () => LocationStore.historyOpen);
-	const stashOpen = createStoreListener([LocationStore], () => LocationStore.stashOpen);
-	const selectedCommitFile = createStoreListener(
-		[LocationStore],
-		() => LocationStore.selectedCommitFile
-	);
-	const selectedFile = createStoreListener([LocationStore], () => LocationStore.selectedFile);
+	const [relatedBranches, setRelatedBranches] = createSignal<string[]>([]);
+	const [selectedPanelBranch, setSelectedPanelBranch] = createSignal<string | null>(null);
 
 	return (
-		<div classList={{ workspace: true, 'sidebar-active': props.sidebar }}>
+		<div class="workspace">
 			<Header />
-			{/* History mode: full CommitGraph view */}
-			<Show when={historyOpen()}>
-				<CommitGraph />
-			</Show>
-			{/* Stash mode: old commit detail + files view */}
-			<Show when={stashOpen() && commit()}>
-				<div class="workspace__commit">
-					<div class="workspace__commit__top">
-						<div class="workspace__commit__message">{commit()!.message}</div>
-						<button
-							class="workspace__commit__close"
-							aria-label={t('modal.close')}
-							onClick={() => {
-								LocationStore.setStashOpen(false);
-								LocationStore.setSelectedCommit(undefined);
-								LocationStore.setSelectedCommitFiles(undefined);
-								LocationStore.setSelectedCommitFile(undefined);
-							}}
-						>
-							<Icon name="x" />
-						</button>
+			<div class="workspace__content">
+				<Show when={repository()}>
+					<div class="workspace__content__branches">
+						<BranchPanel
+							branches={relatedBranches()}
+							selectedBranch={selectedPanelBranch()}
+							onSelectBranch={setSelectedPanelBranch}
+						/>
 					</div>
-					<div class="workspace__commit__details">
-						<div class="workspace__commit__details__author">{commit()!.author}</div>
-						<div class="workspace__commit__details__hash">
-							{commit()!.hash.slice(0, 7)}
-						</div>
-						<div class="workspace__commit__details__diff">
-							<Show when={commit()!.tag}>
-								<div class="workspace__commit__details__diff__tag">
-									<Icon name="tag" />
-									{commit()!.tag}
-								</div>
-							</Show>
-							<Show when={commit()!.files}>
-								<div class="workspace__commit__details__diff__files">
-									{t(
-										'git.files',
-										{
-											count: commit()!.files
-										},
-										commit()!.files
-									)}
-								</div>
-							</Show>
-							<Show when={commit()!.insertions}>
-								<div class="workspace__commit__details__diff__insertions">
-									+{commit()!.insertions}
-								</div>
-							</Show>
-							<Show when={commit()!.deletions}>
-								<div class="workspace__commit__details__diff__deletions">
-									-{commit()!.deletions}
-								</div>
-							</Show>
-						</div>
-					</div>
-				</div>
-			</Show>
-			<Show when={!historyOpen()}>
-			<div class="workspace__container">
-				<Show when={stashOpen() && commitFiles()}>
-					<div class="workspace__container__files">
-						<For each={commitFiles()?.files}>
-							{(commitFile) => (
-								<Menu
-									interfaceId="workspace-commit-file"
-									items={[
-										{
-											type: 'item',
-											label: t('sidebar.contextMenu.viewIn', {
-												name:
-													window.Native.platform === 'darwin' ?
-														'Finder'
-													:	'Explorer'
-											}),
-											onClick: () => {
-												showItemInFolder(
-													path.join(
-														LocationStore.selectedRepository!.path,
-														commitFile.path,
-														commitFile.filename
-													)
-												);
-											},
-											disabled: !fs.existsSync(
-												path.join(
-													LocationStore.selectedRepository!.path,
-													commitFile.path,
-													commitFile.filename
-												)
-											)
-										},
-										{
-											label: t('sidebar.contextMenu.openRemote'),
-											disabled: !fs.existsSync(
-												path.join(
-													LocationStore.selectedRepository!.path,
-													commitFile.path,
-													commitFile.filename
-												)
-											),
-											type: 'item',
-											onClick: () => {
-												openExternal(
-													LocationStore.selectedRepository?.remote.replace(
-														/\.git$/,
-														''
-													) +
-														`/blob/${LocationStore.selectedRepository?.branch}/` +
-														path.join(
-															commitFile.path,
-															commitFile.filename
-														)
-												);
-											}
-										},
-										{
-											label: t('sidebar.contextMenu.openIn', {
-												name: t(
-													`settings.general.editor.${
-														SettingsStore.getSetting(
-															'externalEditor'
-														) || 'code'
-													}`
-												)
-											}),
-											onClick: () => {
-												openInEditor(
-													path.join(
-														LocationStore.selectedRepository!.path,
-														commitFile.path,
-														commitFile.filename
-													)
-												);
-											},
-											disabled: !fs.existsSync(
-												path.join(
-													LocationStore.selectedRepository!.path,
-													commitFile.path,
-													commitFile.filename
-												)
-											),
-											type: 'item'
-										}
-									]}
-								>
-									<div
-										tabIndex={0}
-										role="button"
-										aria-label={t('workspace.commit.open', {
-											hash: commitFile.filename
-										})}
-										aria-selected={selectedCommitFile() === commitFile}
-										data-active={selectedCommitFile() === commitFile}
-										data-status={selectedCommitFile()?.status}
-										classList={{
-											workspace__container__files__file: true,
-											active: selectedCommitFile() === commitFile
-										}}
-										onClick={() => {
-											LocationStore.setSelectedCommitFile(commitFile);
-										}}
-										onKeyDown={(event) => {
-											if (event.key === 'Enter') {
-												LocationStore.setSelectedCommitFile(commitFile);
-											}
-										}}
-									>
-										<Show when={getIconForFilePath(commitFile.filename)}>
-											<div class="workspace__container__files__file__fileicon">
-												<img
-													src={getIconUrlForFilePath(
-														commitFile.filename,
-														'./icons'
-													)}
-													alt={getIconForFilePath(commitFile.filename)}
-												/>
-											</div>
-										</Show>
-										<div class="workspace__container__files__file__filename">
-											<Show when={commitFile.from}>
-												<span
-													class="sidebar__item__filename__path"
-													title={commitFile.fromPath}
-												>
-													{commitFile.fromPath}
-												</span>
-												<span class="sidebar__item__filename__name">
-													<span class="sidebar__item__filename__name__separator">
-														{commitFile.fromPath?.length ? '/' : ''}
-													</span>
-													{commitFile.from}
-												</span>
-												<span class="sidebar__item__filename__arrow">
-													<Icon name="arrow-right" />
-												</span>
-											</Show>
-											<span
-												class="workspace__container__files__file__filename__path"
-												title={commitFile.path}
-											>
-												{commitFile.path}
-											</span>
-											<span class="workspace__container__files__file__filename__name">
-												<span class="workspace__container__files__file__filename__name__separator">
-													{commitFile.path.length ? '/' : ''}
-												</span>
-												{commitFile.filename}
-											</span>
-										</div>
-										<div
-											classList={{
-												workspace__container__files__file__status: true,
-												[commitFile.status]: true
-											}}
-										>
-											{statusToAlpha(commitFile.status)}
-										</div>
-									</div>
-								</Menu>
-							)}
-						</For>
+					<div class="workspace__content__graph">
+						<CommitGraph
+							onBranchesFound={setRelatedBranches}
+							highlightBranch={selectedPanelBranch()}
+						/>
 					</div>
 				</Show>
-				<div class="workspace__container__main">
-					<div class="workspace__container__main__file">
-						<div class="workspace__container__main__file__path">
-							<Show
-								when={(stashOpen() ?
-									selectedCommitFile()?.path || ''
-								:	file()?.file?.path || ''
-								).endsWith('/')}
-								fallback={
-									((stashOpen() ?
-										selectedCommitFile()?.path
-									:	file()?.file?.path) || '') + '/'
-								}
-							>
-								{stashOpen() ? selectedCommitFile()?.path : file()?.file?.path}
-							</Show>
-						</div>
-						<div class="workspace__container__main__file__name">
-							{stashOpen() ? selectedCommitFile()?.filename : file()?.file?.name}
-						</div>
-					</div>
-					<CodeView
-						status={selectedCommitFile()?.status || selectedFile()?.status || 'unknown'}
-						file={file()?.path || ''}
-						repository={repo()!}
-						fromFile={path.join(
-							selectedCommitFile()?.fromPath || '',
-							selectedCommitFile()?.from || ''
-						)}
-					/>
-				</div>
 			</div>
-			</Show>
 		</div>
 	);
 };

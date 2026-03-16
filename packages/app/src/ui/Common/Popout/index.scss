@@ -11,6 +11,14 @@
 	z-index: calc(95 * var(--layer-index));
 	color: var(--color-primary);
 
+	&.start {
+		transform: translateX(-10px);
+
+		.popout__arrow {
+			left: 15px;
+		}
+	}
+
 	&.end {
 		transform: translateX(calc(-100% + 20px));
 

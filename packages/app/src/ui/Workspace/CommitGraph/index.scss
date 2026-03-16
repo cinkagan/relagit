@@ -1,10 +1,5 @@
 @use '../../../illyrica/mixins';
 
-// Override codeview__empty padding when CommitGraph is inside
-.codeview__empty:has(.commit-graph) {
-	padding: 0;
-}
-
 .commit-graph {
 	display: flex;
 	width: 100%;
@@ -21,58 +16,101 @@
 		overflow: hidden;
 	}
 
-	&__header {
+	// ── Column headers ──
+	&__columns {
 		display: flex;
 		align-items: center;
-		gap: 8px;
-		padding: 10px 16px;
+		height: 28px;
+		min-height: 28px;
 		border-bottom: 1px solid var(--separator-secondary);
+		font-size: 0.7rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
 		color: var(--color-secondary);
-		font-size: 0.85rem;
+		user-select: none;
 		flex-shrink: 0;
 
 		&__branch {
-			color: var(--color-primary);
-			font-weight: 600;
+			flex-shrink: 0;
+			padding-left: 12px;
+			padding-right: 8px;
 		}
 
-		&__count {
-			margin-left: auto;
-			opacity: 0.6;
+		&__graph {
+			min-width: 40px;
+			flex-shrink: 0;
+			text-align: center;
 		}
 
-		&__action {
-			display: flex;
-			align-items: center;
-			gap: 4px;
-			border: none;
-			background: var(--bg-secondary);
-			color: var(--color-secondary);
-			padding: 2px 8px;
-			border-radius: 4px;
-			cursor: pointer;
-			font-size: 0.8rem;
-
-			&:hover {
-				background: var(--bg-hover);
-				color: var(--color-primary);
-			}
+		&__message {
+			flex: 1;
+			min-width: 0;
+			padding-left: 8px;
 		}
 	}
 
+	// ── Scrollable list area ──
 	&__list {
 		flex: 1;
 		overflow-y: auto;
 		overflow-x: hidden;
+		position: relative;
+	}
+
+	// ── Loading overlay — thin animated bar at top ──
+	&__loading-overlay {
+		position: sticky;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 2px;
+		z-index: 10;
+		overflow: hidden;
+	}
+
+	&__loading-bar {
+		height: 100%;
+		width: 40%;
+		background: var(--color-blue-500);
+		border-radius: 1px;
+		animation: commit-graph-loading 1s ease-in-out infinite;
+	}
+
+	@keyframes commit-graph-loading {
+		0% {
+			transform: translateX(-100%);
+		}
+		100% {
+			transform: translateX(350%);
+		}
+	}
+
+	// ── Canvas container ──
+	&__canvas-container {
+		position: absolute;
+		top: 0;
+		pointer-events: none;
+		z-index: 1;
+	}
+
+	&__canvas {
+		display: block;
+	}
+
+	// ── Rows container ──
+	&__rows {
+		position: relative;
+		z-index: 2;
 	}
 
 	// ── Each commit row ──
 	&__row {
 		display: flex;
 		align-items: center;
-		gap: 12px;
-		padding: 0 16px 0 0;
-		height: 32px;
+		gap: 0;
+		padding: 0;
+		height: 34px;
 		width: 100%;
 		border: none;
 		background: none;
@@ -94,33 +132,145 @@
 		&--selected {
 			background: color-mix(in srgb, var(--color-blue-500) 10%, transparent 90%);
 		}
-	}
 
-	// ── Rail with lane lines ──
-	&__rail {
-		position: relative;
-		height: 100%;
-		flex-shrink: 0;
+		&--highlighted {
+			background: color-mix(in srgb, var(--color-blue-500) 8%, transparent 92%);
 
-		&__lane {
-			position: absolute;
-			top: 0;
-			width: 2px;
-			height: 100%;
-			opacity: 0.3;
+			.commit-graph__info__message {
+				color: var(--color-primary);
+				font-weight: 500;
+			}
+		}
+
+		&--dimmed {
+			opacity: 0.35;
+
+			&:hover {
+				opacity: 0.7;
+			}
+		}
+
+		&--wip {
+			cursor: default;
+			border-bottom: 1px solid var(--separator-secondary);
+		}
+
+		&__branch {
+			flex-shrink: 0;
+			display: flex;
+			align-items: center;
+			justify-content: flex-end;
+			gap: 5px;
+			padding: 0 10px;
+			overflow: hidden;
+		}
+
+		&__spacer {
+			flex-shrink: 0;
 		}
 	}
 
-	// ── Commit dot ──
-	&__dot {
-		position: absolute;
-		top: 50%;
-		width: 10px;
-		height: 10px;
-		border-radius: 50%;
-		border: 2px solid;
-		transform: translateY(-50%);
-		z-index: 1;
+	// ── Branch badge ──
+	&__branch-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		max-width: 180px;
+		font-size: 0.72rem;
+		font-weight: 600;
+		padding: 3px 8px;
+		border-radius: 6px;
+		white-space: nowrap;
+		overflow: hidden;
+		color: var(--color-primary);
+		background: color-mix(in srgb, var(--color-blue-500) 18%, var(--bg-secondary) 82%);
+		border: 1px solid color-mix(in srgb, var(--color-blue-500) 25%, transparent 75%);
+		line-height: 1.4;
+
+		// Icons inside the badge — small, muted, non-competing with text
+		svg {
+			width: 14px;
+			height: 14px;
+			flex-shrink: 0;
+			opacity: 0.7;
+		}
+
+		&__name {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			min-width: 30px;
+			max-width: 140px;
+		}
+
+		// Separator between name and trailing icons
+		&__icons {
+			display: inline-flex;
+			align-items: center;
+			gap: 2px;
+			margin-left: 1px;
+
+			svg {
+				width: 12px;
+				height: 12px;
+				opacity: 0.55;
+			}
+		}
+
+		&--current {
+			background: color-mix(in srgb, var(--color-green-500) 20%, var(--bg-secondary) 80%);
+			border-color: color-mix(in srgb, var(--color-green-500) 30%, transparent 70%);
+			color: var(--color-green-500);
+
+			// Check icon should be fully visible
+			> svg:first-child {
+				opacity: 1;
+			}
+		}
+	}
+
+	// ── Ahead badge (+N) ──
+	&__ahead-badge {
+		display: inline-flex;
+		align-items: center;
+		font-size: 0.7rem;
+		font-weight: 600;
+		padding: 3px 7px;
+		border-radius: 6px;
+		color: var(--color-secondary);
+		background: var(--bg-tertiary);
+		border: 1px solid var(--separator-secondary);
+		white-space: nowrap;
+	}
+
+	// ── Tag badge ──
+	&__tag-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		max-width: 120px;
+		font-size: 0.7rem;
+		font-weight: 600;
+		padding: 3px 8px;
+		border-radius: 6px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		color: var(--color-amber-500, #f59e0b);
+		background: color-mix(
+			in srgb,
+			var(--color-amber-500, #f59e0b) 12%,
+			var(--bg-secondary) 88%
+		);
+		border: 1px solid
+			color-mix(in srgb, var(--color-amber-500, #f59e0b) 20%, transparent 80%);
+		line-height: 1.5;
+
+		svg {
+			width: 12px;
+			height: 12px;
+			flex-shrink: 0;
+		}
 	}
 
 	// ── Commit info ──
@@ -131,84 +281,70 @@
 		gap: 8px;
 		min-width: 0;
 		overflow: hidden;
+		padding-right: 16px;
 
 		&__message {
 			overflow: hidden;
 			text-overflow: ellipsis;
 			white-space: nowrap;
 			font-size: 0.85rem;
+
+			&--merge {
+				color: var(--color-secondary);
+			}
 		}
 
-		&__ref {
-			flex-shrink: 0;
-			font-size: 0.7rem;
-			font-weight: 600;
+		&__wip-input {
+			font-size: 0.85rem;
+			font-family: var(--font-mono);
+			color: var(--color-secondary);
 			padding: 2px 8px;
 			border-radius: 4px;
-			white-space: nowrap;
+			border: 1px solid var(--separator-secondary);
+			background: var(--bg-tertiary);
+		}
+
+		&__wip-stats {
+			display: inline-flex;
+			align-items: center;
+			gap: 4px;
+			font-size: 0.75rem;
+			font-weight: 600;
+			color: var(--color-green-500);
+
+			svg {
+				width: 12px;
+				height: 12px;
+			}
 		}
 	}
 
-	// ── Meta (hash, date) ──
-	&__meta {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		flex-shrink: 0;
-		font-size: 0.8rem;
-		color: var(--color-secondary);
-
-		&__hash {
-			font-family: var(--font-mono);
-			opacity: 0.7;
-		}
-
-		&__date {
-			min-width: 80px;
-			text-align: right;
-			white-space: nowrap;
-		}
-	}
-
-	// ── Right panel: changed files ──
-	&__files {
-		width: 280px;
-		min-width: 280px;
-		border-left: 1px solid var(--separator-secondary);
+	// ── Right panel: commit detail ──
+	&__detail {
+		width: 340px;
+		min-width: 340px;
+		border-left: 1px solid var(--separator-primary);
 		display: flex;
 		flex-direction: column;
 		overflow: hidden;
+		background-color: var(--bg-material);
 
+		// ── Header: message + close ──
 		&__header {
 			display: flex;
-			align-items: center;
-			justify-content: space-between;
+			align-items: flex-start;
 			gap: 8px;
-			padding: 8px 12px;
+			padding: 14px 14px 12px 16px;
 			border-bottom: 1px solid var(--separator-secondary);
 			flex-shrink: 0;
 
-			&__info {
-				display: flex;
-				flex-direction: column;
-				gap: 2px;
-				min-width: 0;
+			&__title {
 				flex: 1;
-			}
-
-			&__message {
-				font-size: 0.85rem;
-				font-weight: 500;
+				font-size: 0.9rem;
+				font-weight: 600;
 				color: var(--color-primary);
-				overflow: hidden;
-				text-overflow: ellipsis;
-				white-space: nowrap;
-			}
-
-			&__hash {
-				font-size: 0.75rem;
-				color: var(--color-secondary);
-				font-family: var(--font-mono);
+				line-height: 1.45;
+				word-break: break-word;
 			}
 
 			&__close {
@@ -217,9 +353,10 @@
 				color: var(--color-secondary);
 				cursor: pointer;
 				padding: 4px;
-				border-radius: 4px;
+				border-radius: 6px;
 				display: flex;
 				flex-shrink: 0;
+				margin-top: -2px;
 
 				&:hover {
 					background: var(--bg-hover);
@@ -228,65 +365,200 @@
 			}
 		}
 
-		&__list {
-			flex: 1;
-			overflow-y: auto;
+		// ── Meta rows: SHA, author, date, parent ──
+		&__meta {
+			display: flex;
+			flex-direction: column;
+			padding: 10px 16px;
+			gap: 6px;
+			border-bottom: 1px solid var(--separator-secondary);
+			flex-shrink: 0;
 
-			.empty-state {
-				padding: 16px;
+			&__row {
+				display: flex;
+				align-items: center;
 				gap: 8px;
+				font-size: 0.8rem;
+				min-height: 22px;
+			}
+
+			&__label {
+				display: flex;
+				flex-shrink: 0;
+				color: var(--color-secondary);
 
 				svg {
-					width: 24px;
-					height: 24px;
-					margin-bottom: 0;
+					width: 14px;
+					height: 14px;
+				}
+			}
+
+			&__value {
+				color: var(--color-primary);
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+
+				&--mono {
+					font-family: var(--font-mono);
+					font-size: 0.75rem;
+					color: var(--color-secondary);
+				}
+			}
+
+			&__sha {
+				display: inline-flex;
+				align-items: center;
+				gap: 5px;
+				font-family: var(--font-mono);
+				font-size: 0.75rem;
+				color: var(--color-blue-500);
+				background: none;
+				border: none;
+				padding: 2px 6px;
+				margin: -2px -6px;
+				border-radius: 4px;
+				cursor: pointer;
+
+				svg {
+					width: 12px;
+					height: 12px;
+					opacity: 0.5;
+				}
+
+				&:hover {
+					background: var(--bg-hover);
+
+					svg {
+						opacity: 1;
+					}
 				}
 			}
 		}
 
-		&__item {
+		// ── Stats bar: files, +additions, -deletions ──
+		&__stats {
 			display: flex;
 			align-items: center;
-			justify-content: space-between;
-			padding: 6px 12px;
+			gap: 12px;
+			padding: 8px 16px;
 			border-bottom: 1px solid var(--separator-secondary);
-			font-size: 0.85rem;
-			gap: 8px;
+			flex-shrink: 0;
 
-			&__name {
-				overflow: hidden;
-				text-overflow: ellipsis;
-				white-space: nowrap;
-				color: var(--color-primary);
-			}
-
-			&__path {
+			&__item {
+				display: inline-flex;
+				align-items: center;
+				gap: 4px;
+				font-size: 0.75rem;
+				font-weight: 600;
 				color: var(--color-secondary);
+
+				svg {
+					width: 13px;
+					height: 13px;
+				}
+
+				&--added {
+					color: var(--status-added, #22c55e);
+				}
+
+				&--deleted {
+					color: var(--status-deleted, #ef4444);
+				}
+			}
+		}
+
+		// ── Changed files ──
+		&__files {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			overflow: hidden;
+
+			&__loading {
+				height: 2px;
+				overflow: hidden;
+				flex-shrink: 0;
 			}
 
-			&__status {
-				font-family: var(--font-mono);
-				flex-shrink: 0;
+			&__list {
+				flex: 1;
+				overflow-y: auto;
+			}
+
+			&__item {
+				display: flex;
+				align-items: center;
+				padding: 5px 16px;
+				border-bottom: 1px solid var(--separator-secondary);
 				font-size: 0.8rem;
+				gap: 8px;
 
-				&.added {
-					color: var(--status-added);
+				&__indicator {
+					width: 3px;
+					height: 16px;
+					border-radius: 2px;
+					flex-shrink: 0;
+
+					&.added {
+						background: var(--status-added);
+					}
+
+					&.modified {
+						background: var(--status-modified);
+					}
+
+					&.renamed {
+						background: var(--status-renamed);
+					}
+
+					&.deleted {
+						background: var(--status-deleted);
+					}
+
+					&.unknown {
+						background: var(--status-untracked);
+					}
 				}
 
-				&.modified {
-					color: var(--status-modified);
+				&__name {
+					flex: 1;
+					overflow: hidden;
+					text-overflow: ellipsis;
+					white-space: nowrap;
+					color: var(--color-primary);
 				}
 
-				&.renamed {
-					color: var(--status-renamed);
+				&__path {
+					color: var(--color-secondary);
 				}
 
-				&.deleted {
-					color: var(--status-deleted);
-				}
+				&__status {
+					font-family: var(--font-mono);
+					flex-shrink: 0;
+					font-size: 0.7rem;
+					font-weight: 600;
+					letter-spacing: 0.3px;
 
-				&.unknown {
-					color: var(--status-untracked);
+					&.added {
+						color: var(--status-added);
+					}
+
+					&.modified {
+						color: var(--status-modified);
+					}
+
+					&.renamed {
+						color: var(--status-renamed);
+					}
+
+					&.deleted {
+						color: var(--status-deleted);
+					}
+
+					&.unknown {
+						color: var(--status-untracked);
+					}
 				}
 			}
 		}

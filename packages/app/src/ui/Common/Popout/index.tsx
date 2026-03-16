@@ -65,7 +65,6 @@ export default (props: Popout) => {
 
 	const hide = () => {
 		setOpen(false);
-
 		deactivate();
 	};
 
@@ -75,23 +74,37 @@ export default (props: Popout) => {
 		}
 	});
 
+	// Close on any click outside both the popout and the wrapper
+	const onDocumentClick = (e: MouseEvent) => {
+		const p = popout();
+		const w = wrapper();
+		const target = e.target as Node;
+
+		if (p && p.contains(target)) return; // click inside popout
+		if (w && w.contains(target)) return; // click on wrapper (toggle handles it)
+
+		hide();
+	};
+
+	createEffect(() => {
+		if (open()) {
+			document.addEventListener('mousedown', onDocumentClick, true);
+		} else {
+			document.removeEventListener('mousedown', onDocumentClick, true);
+		}
+	});
+
+	onCleanup(() => {
+		document.removeEventListener('mousedown', onDocumentClick, true);
+	});
+
 	const show = (e?: MouseEvent | KeyboardEvent) => {
 		e?.stopPropagation();
 		e?.preventDefault();
 
 		setOpen(true);
-
 		activate();
-
 		listener();
-
-		// const el: HTMLElement | null | undefined = popout()?.querySelector(
-		// 	'button,input,a,select,textarea,[tabindex]'
-		// );
-
-		// if (el) {
-		// 	el.focus();
-		// }
 	};
 
 	const toggle = (e?: MouseEvent | KeyboardEvent) => {
@@ -106,15 +119,10 @@ export default (props: Popout) => {
 
 	const { activate, deactivate } = useFocusTrap(popout, {
 		onDeactivate: () => {
-			hide();
+			setOpen(false);
 		},
 		initialFocus: false,
-		allowOutsideClick: true,
-		clickOutsideDeactivates: (e) => {
-			if (e.target === wrapper()) return false;
-
-			return true;
-		}
+		allowOutsideClick: true
 	});
 
 	return (

@@ -9,7 +9,6 @@ import { CommandPalette } from './ui/Palette';
 import Modal from '@ui/Modal';
 import Notification from '@ui/Notification';
 import Onboarding from '@ui/Onboarding';
-import Sidebar from '@ui/Sidebar';
 import Workspace from '@ui/Workspace';
 
 import { Fetch } from './modules/git/fetch';
@@ -54,12 +53,7 @@ export const queueRepositoryLoad = () => {
 export default () => {
 	const settings = createStoreListener([SettingsStore], () => SettingsStore.settings);
 	const onboarding = createStoreListener([OnboardingStore], () => OnboardingStore.state);
-	const [sidebar, setSidebar] = createSignal(true);
 	const [focused, setFocused] = createSignal(document.hasFocus());
-
-	window.Native.listeners.SIDEBAR((_, value) => {
-		setSidebar((o) => value ?? !o);
-	});
 
 	window.Native.listeners.FOCUS((_, value) => {
 		setFocused(value);
@@ -138,8 +132,7 @@ export default () => {
 					<DragLayer />
 					<Notification.Layer />
 					<CommandPalette />
-					<Sidebar sidebar={sidebar()} />
-					<Workspace sidebar={sidebar()} />
+					<Workspace />
 				</Show>
 			</div>
 		</>

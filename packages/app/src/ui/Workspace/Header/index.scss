@@ -13,9 +13,67 @@
 .workspace__header {
 	display: flex;
 	align-items: center;
-	min-height: 72px;
+	min-height: 52px;
+	max-height: 52px;
 	border-bottom: 1px solid var(--separator-primary);
 	-webkit-app-region: drag;
+
+	&__selectors {
+		display: flex;
+		align-items: center;
+		height: 100%;
+		-webkit-app-region: no-drag;
+	}
+
+	&__selector {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 0 16px;
+		height: 100%;
+		background: none;
+		color: var(--color-primary);
+		cursor: pointer;
+		user-select: none;
+		border-right: 1px solid var(--separator-secondary);
+		white-space: nowrap;
+
+		@include mixins.focusable;
+
+		&:hover {
+			background-color: var(--bg-hover);
+		}
+
+		&.active {
+			background-color: var(--bg-active);
+		}
+
+		&:disabled {
+			pointer-events: none;
+			opacity: 0.5;
+		}
+
+		&__label {
+			font-size: 0.9rem;
+			font-weight: 500;
+			max-width: 180px;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		svg {
+			width: 16px;
+			height: 16px;
+			color: var(--color-secondary);
+			flex-shrink: 0;
+
+			&:last-child {
+				width: 12px;
+				height: 12px;
+				opacity: 0.5;
+			}
+		}
+	}
 
 	&__spacer {
 		flex: 1;
@@ -27,8 +85,8 @@
 		align-items: center;
 		justify-content: center;
 		background-color: transparent;
-		padding-inline: 35px;
-		gap: 16px;
+		padding-inline: 20px;
+		gap: 10px;
 		user-select: none;
 		position: relative;
 		-webkit-app-region: no-drag;
@@ -48,8 +106,8 @@
 			}
 		}
 
-		&:not(:has(.workspace__header__panelbutton__info)) {
-			padding-inline: 20px;
+		&:has(.workspace__header__panelbutton__info) {
+			padding-inline: 24px;
 		}
 
 		&.disabled {
@@ -92,7 +150,7 @@
 			width: 100%;
 
 			&__label {
-				font-size: 1rem;
+				font-size: 0.85rem;
 				font-weight: 600;
 				text-overflow: ellipsis;
 				overflow: hidden;
@@ -100,7 +158,7 @@
 			}
 
 			&__detail {
-				font-size: 0.85rem;
+				font-size: 0.75rem;
 				color: var(--color-secondary);
 				text-overflow: ellipsis;
 				overflow: hidden;
@@ -110,8 +168,8 @@
 
 		svg {
 			z-index: 1;
-			width: 24px;
-			height: 24px;
+			width: 18px;
+			height: 18px;
 			flex-shrink: 0;
 			color: var(--color-secondary);
 			pointer-events: none;
@@ -119,6 +177,132 @@
 	}
 }
 
+/* Repo Picker Popout */
+.popout .repo-picker {
+	user-select: none;
+	min-width: 280px;
+	max-width: 350px;
+	overflow: hidden;
+
+	&__search {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 4px 12px;
+		margin: 8px 8px 4px;
+		border-radius: 6px;
+		background-color: var(--bg-tertiary);
+		border: 1px solid var(--separator-secondary);
+		color: var(--color-secondary);
+
+		input {
+			background: none;
+			border: none;
+			outline: none;
+			color: var(--color-primary);
+			font-size: 0.85rem;
+			width: 100%;
+			padding: 2px 0;
+
+			&::placeholder {
+				color: var(--color-secondary);
+			}
+		}
+	}
+
+	&__list {
+		display: flex;
+		flex-direction: column;
+		max-height: 400px;
+		overflow-y: auto;
+
+		&__item {
+			background: none;
+			display: flex;
+			padding: 8px 16px;
+			align-items: center;
+			color: var(--color-primary);
+			border-top: 1px solid var(--separator-secondary);
+			justify-content: space-between;
+			text-align: left;
+			width: 100%;
+			gap: 8px;
+			cursor: pointer;
+
+			@include mixins.focusable;
+
+			&:hover {
+				background-color: var(--bg-hover);
+			}
+
+			&.active {
+				background-color: var(--bg-active);
+			}
+
+			&__text {
+				display: flex;
+				flex-direction: column;
+				gap: 2px;
+				overflow: hidden;
+			}
+
+			&__name {
+				font-size: 0.9rem;
+				font-weight: 500;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+
+			&__detail {
+				font-size: 0.75rem;
+				color: var(--color-secondary);
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+
+			&__indicator {
+				width: 8px;
+				height: 8px;
+				border-radius: 50%;
+				background-color: var(--color-blue-500);
+				flex-shrink: 0;
+			}
+		}
+	}
+
+	&__actions {
+		display: flex;
+		flex-direction: column;
+		border-top: 1px solid var(--separator-secondary);
+	}
+
+	&__action {
+		padding: 8px 16px;
+		color: var(--color-blue-500);
+		font-size: 0.85rem;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		background: none;
+		border: none;
+		width: 100%;
+		cursor: pointer;
+
+		&:hover {
+			color: var(--color-blue-700);
+			background-color: var(--bg-hover);
+		}
+
+		svg {
+			width: 14px;
+			height: 14px;
+		}
+	}
+}
+
+/* Stash Picker */
 .popout .stash-picker {
 	user-select: none;
 	max-width: 350px;
@@ -191,6 +375,7 @@
 	}
 }
 
+/* Branch Picker */
 .popout .branches-picker {
 	user-select: none;
 	max-width: 300px;
@@ -249,18 +434,19 @@
 			min-width: 250px;
 			width: 100%;
 			gap: 8px;
+			cursor: pointer;
 
 			@include mixins.focusable;
 
 			&__name {
 				overflow: hidden;
-				display: flex;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+				min-width: 0;
+				flex: 1;
 
 				&__path {
 					color: var(--color-secondary);
-					overflow: hidden;
-					white-space: nowrap;
-					text-overflow: ellipsis;
 				}
 
 				&__separator {
@@ -269,7 +455,6 @@
 
 				&__branch {
 					color: var(--color-primary);
-					white-space: nowrap;
 				}
 			}
 

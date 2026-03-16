@@ -2,6 +2,64 @@ import { Repository } from '@stores/repository';
 
 import { Git } from './core';
 
+/** Find the merge-base (fork point) between two refs */
+export const MergeBase = async (
+	repository: Repository,
+	ref1: string,
+	ref2: string
+): Promise<string | null> => {
+	if (!repository) return null;
+
+	try {
+		const res = await Git({
+			directory: repository.path,
+			command: 'merge-base',
+			args: [ref1, ref2]
+		});
+		return res.trim() || null;
+	} catch {
+		return null;
+	}
+};
+
+/** Detect the default branch (main/master) */
+export const DefaultBranch = async (repository: Repository): Promise<string> => {
+	if (!repository) return 'main';
+
+	try {
+		// Try to get the default branch from origin/HEAD
+		const res = await Git({
+			directory: repository.path,
+			command: 'symbolic-ref',
+			args: ['refs/remotes/origin/HEAD', '--short']
+		});
+		// Returns something like "origin/main" -> extract "main"
+		const parts = res.trim().split('/');
+		return parts[parts.length - 1] || 'main';
+	} catch {
+		// Fallback: check if main or master exists
+		try {
+			await Git({
+				directory: repository.path,
+				command: 'rev-parse',
+				args: ['--verify', 'main']
+			});
+			return 'main';
+		} catch {
+			try {
+				await Git({
+					directory: repository.path,
+					command: 'rev-parse',
+					args: ['--verify', 'master']
+				});
+				return 'master';
+			} catch {
+				return 'main';
+			}
+		}
+	}
+};
+
 export interface LogCommit {
 	hash: string;
 	tag?: string;

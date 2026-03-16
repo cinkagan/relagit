@@ -1,4 +1,4 @@
-import { For, JSX, Show, createEffect, createSignal } from 'solid-js';
+import { For, JSX, Show, createEffect, createMemo, createRoot, createSignal } from 'solid-js';
 
 import { Branch } from '@app/modules/git/branches';
 import { StashEntry } from '@app/modules/git/stash';
@@ -7,20 +7,23 @@ import { Reffable } from '@app/shared';
 import DraftStore from '@app/stores/draft';
 import OnboardingStore from '@app/stores/onboarding';
 import RemoteStore from '@app/stores/remote';
-import RepositoryStore from '@app/stores/repository';
+import RepositoryStore, { Repository } from '@app/stores/repository';
 import SettingsStore from '@app/stores/settings';
+import FileStore, { GitFile } from '@app/stores/files';
+import AffinityStore from '@app/stores/affinity';
 import Popout from '@app/ui/Common/Popout';
 import Menu from '@app/ui/Menu';
 import { showErrorModal } from '@app/ui/Modal';
-import { finishTour } from '@app/ui/Onboarding';
-import { refetchRepository, triggerWorkflow } from '@modules/actions';
+import ModalStore from '@app/stores/modal';
+import { refetchRepository, removeRepository, triggerWorkflow } from '@modules/actions';
 import * as Git from '@modules/git';
 import { debug, error } from '@modules/logger';
 import { renderDate } from '@modules/time';
 import { createStoreListener } from '@stores/index';
 import LocationStore from '@stores/location';
 import { branchFormatsForProvider } from '~/app/src/modules/github';
-import { openExternal } from '~/app/src/modules/shell';
+import { openExternal, showItemInFolder } from '~/app/src/modules/shell';
+import { openInEditor } from '@app/modules/editor';
 
 import Icon, { IconName } from '@ui/Common/Icon';
 import Tooltip from '@ui/Common/Tooltip';
@@ -28,6 +31,9 @@ import { showCherryPickModal } from '@ui/Modal/CherryPick';
 import { showConflictModal } from '@ui/Modal/Conflict';
 import { showPublishModal } from '@ui/Modal/Publish';
 import { showSequentialMergeModal } from '@ui/Modal/SequentialMerge';
+import CloneModal from '@ui/Modal/CloneModal';
+import { showRepoModal } from '@ui/Modal/RepositoryModal';
+import TextArea from '../../Common/TextArea';
 
 import './index.scss';
 
@@ -103,13 +109,16 @@ const PanelButton = (props: Reffable<PanelButtonProps>) => {
 	);
 };
 
+const hasUncommittedChanges = (files: Map<string, GitFile[]>, repository: Repository) => {
+	const changes = files.get(repository.path);
+	if (!changes) return false;
+	return changes.length > 0;
+};
+
 export default () => {
 	const repository = createStoreListener([LocationStore, RepositoryStore], () =>
 		RepositoryStore.getById(LocationStore.selectedRepository?.id)
 	);
-	const historyOpen = createStoreListener([LocationStore], () => LocationStore.historyOpen);
-	const onboarding = createStoreListener([OnboardingStore], () => OnboardingStore.state);
-	const onboardingStepState = createSignal(false);
 	const [hasNewBranchInput, setHasNewBranchInput] = createSignal(false);
 	const [newBranch, setNewBranch] = createSignal('');
 	const [inputRef, setInputRef] = createSignal<HTMLElement>();
@@ -128,15 +137,12 @@ export default () => {
 			const bGit = b.gitName.toLowerCase();
 			const aName = a.name.toLowerCase();
 			const bName = b.name.toLowerCase();
-			// exact match on name or gitName
 			const aExact = aName === search || aGit === search;
 			const bExact = bName === search || bGit === search;
 			if (aExact !== bExact) return aExact ? -1 : 1;
-			// name starts with search
 			const aNameStarts = aName.startsWith(search);
 			const bNameStarts = bName.startsWith(search);
 			if (aNameStarts !== bNameStarts) return aNameStarts ? -1 : 1;
-			// gitName starts with search
 			const aGitStarts = aGit.startsWith(search);
 			const bGitStarts = bGit.startsWith(search);
 			if (aGitStarts !== bGitStarts) return aGitStarts ? -1 : 1;
@@ -163,9 +169,39 @@ export default () => {
 
 	const branchPickerSignal = createSignal(false);
 
+	// Repo picker state
+	const repoPickerSignal = createSignal(false);
+	const [repoFilter, setRepoFilter] = createSignal('');
+	const repositories = createStoreListener([RepositoryStore], () => RepositoryStore.repositories);
+	const files = createStoreListener([FileStore], () => FileStore.files);
+	const affinities = createStoreListener([AffinityStore], () => AffinityStore);
+
+	const filteredRepos = createMemo((): Repository[] => {
+		const filterValue = repoFilter().toLowerCase();
+		const searchable = Array.from(repositories()?.values() || []).sort((a, b) =>
+			a.name.localeCompare(b.name)
+		);
+		return searchable
+			.filter((repo) => {
+				if (!filterValue) return true;
+				return (
+					repo.name.toLowerCase().includes(filterValue) ||
+					repo.path.toLowerCase().includes(filterValue) ||
+					repo.remote.toLowerCase().includes(filterValue)
+				);
+			})
+			.sort((a, b) => affinities()?.sort(a, b) || 0);
+	});
+
 	createEffect(() => {
 		if (!branchPickerSignal[0]()) {
 			setBranchSearch('');
+		}
+	});
+
+	createEffect(() => {
+		if (!repoPickerSignal[0]()) {
+			setRepoFilter('');
 		}
 	});
 
@@ -181,12 +217,6 @@ export default () => {
 		if (!previous) return setPrevious(undefined);
 
 		setPrevious(previous);
-	});
-
-	createEffect(() => {
-		if (onboarding()!.step === 4 && onboarding()!.dismissed !== true) {
-			onboardingStepState[1](true);
-		}
 	});
 
 	createEffect(() => {
@@ -249,6 +279,447 @@ export default () => {
 
 	return (
 		<div class="workspace__header">
+			{/* Left section: Repo + Branch selectors */}
+			<div class="workspace__header__selectors">
+				{/* Repository Picker */}
+				<Popout
+					trapFocus
+					position="bottom"
+					align="start"
+					open={repoPickerSignal}
+					body={() => (
+						<div class="repo-picker">
+							<div class="repo-picker__search">
+								<Icon name="search" variant={16} />
+								<input
+									type="text"
+									placeholder={t('sidebar.drawer.title')}
+									spellcheck={false}
+									autocomplete="off"
+									value={repoFilter()}
+									onInput={(e) => setRepoFilter(e.currentTarget.value)}
+								/>
+							</div>
+							<div class="repo-picker__list">
+								<For each={filteredRepos()}>
+									{(repo) => (
+										<Menu
+											interfaceId="header-repo-picker"
+											items={[
+												{
+													type: 'item',
+													label: t('sidebar.contextMenu.viewIn', {
+														name:
+															window.Native.platform === 'darwin'
+																? 'Finder'
+																: 'Explorer'
+													}),
+													onClick: () => showItemInFolder(repo.path)
+												},
+												{
+													label: t('sidebar.contextMenu.openRemote'),
+													type: 'item',
+													onClick: () => openExternal(repo.remote)
+												},
+												{
+													label: t('sidebar.contextMenu.openIn', {
+														name: t(
+															`settings.general.editor.${
+																SettingsStore.getSetting('externalEditor') || 'code'
+															}`
+														)
+													}),
+													type: 'item',
+													onClick: () => openInEditor(repo.path)
+												},
+												{ type: 'separator' },
+												{
+													type: 'item',
+													label: t('sidebar.drawer.contextMenu.remove'),
+													color: 'danger',
+													onClick: () => removeRepository(repo)
+												}
+											]}
+										>
+											<button
+												classList={{
+													'repo-picker__list__item': true,
+													active: repository()?.id === repo.id
+												}}
+												onClick={() => {
+													repoPickerSignal[1](false);
+													RepositoryStore.makePermanent(repo);
+													LocationStore.setSelectedRepository(repo);
+												}}
+											>
+												<div class="repo-picker__list__item__text">
+													<span class="repo-picker__list__item__name">
+														{repo.name}
+													</span>
+													<span class="repo-picker__list__item__detail">
+														<Show when={repo.branch}>
+															{repo.branch}
+															{' \u2022 '}
+														</Show>
+														{renderDate(repo.lastFetched || new Date().getTime())()}
+													</span>
+												</div>
+												<Show
+													when={
+														hasUncommittedChanges(files()!, repo) ||
+														repo.ahead ||
+														repo.behind
+													}
+												>
+													<div class="repo-picker__list__item__indicator" />
+												</Show>
+											</button>
+										</Menu>
+									)}
+								</For>
+							</div>
+							<div class="repo-picker__actions">
+								<button
+									class="repo-picker__action"
+									onClick={() => {
+										repoPickerSignal[1](false);
+										showRepoModal('add');
+									}}
+								>
+									<Icon name="plus" variant={16} />
+									{t('sidebar.drawer.contextMenu.addRepository')}
+								</button>
+								<button
+									class="repo-picker__action"
+									onClick={() => {
+										repoPickerSignal[1](false);
+										ModalStore.pushState(
+											'clone',
+											createRoot(() => <CloneModal />)
+										);
+									}}
+								>
+									<Icon name="repo-clone" variant={16} />
+									{t('sidebar.drawer.contextMenu.cloneRepository')}
+								</button>
+							</div>
+						</div>
+					)}
+				>
+					{(p) => (
+						<button
+							ref={p.ref}
+							classList={{
+								'workspace__header__selector': true,
+								'workspace__header__selector--repo': true,
+								active: p.open()
+							}}
+							onMouseDown={(e) => p.toggle(e)}
+						>
+							<Icon name="repo" variant={16} />
+							<span class="workspace__header__selector__label">
+								{repository()?.name || t('sidebar.noRepo')}
+							</span>
+							<Icon name="chevron-down" variant={16} />
+						</button>
+					)}
+				</Popout>
+
+				{/* Branch Picker */}
+				<Popout
+					trapFocus
+					position="bottom"
+					align="start"
+					open={branchPickerSignal}
+					body={() => (
+						<div class="branches-picker">
+							<div class="branches-picker__label" tabIndex={0}>
+								{t('git.branches', undefined, branches()?.length)}
+							</div>
+							<div class="branches-picker__search">
+								<Icon name="search" />
+								<input
+									type="text"
+									placeholder={t('git.searchBranches')}
+									spellcheck={false}
+									autocomplete="off"
+									value={branchSearch()}
+									onInput={(e) => setBranchSearch(e.currentTarget.value)}
+								/>
+							</div>
+							<div class="branches-picker__list">
+								<For each={filteredBranches()}>
+									{(branch) => (
+										<Menu
+											interfaceId="workspace-branch"
+											items={[
+												{
+													type: 'item',
+													label: t('git.deleteBranch'),
+													color: 'danger',
+													onClick: async () => {
+														try {
+															await Git.DeleteBranch(
+																LocationStore.selectedRepository,
+																branch.gitName
+															);
+															refetchRepository(
+																LocationStore.selectedRepository
+															);
+														} catch (e) {
+															showErrorModal(e, 'error.git');
+															error(e);
+														}
+													}
+												},
+												{
+													type: 'item',
+													label: t('git.cherryPick', {
+														current: repository()?.branch,
+														branch: branch.gitName
+													}),
+													disabled: branch.gitName === repository()?.branch,
+													onClick: () => {
+														showCherryPickModal(repository(), branch);
+													}
+												},
+												{
+													type: 'item',
+													label: t('git.mergeBranch', {
+														current: repository()?.branch,
+														branch: branch.gitName
+													}),
+													disabled: branch.gitName === repository()?.branch,
+													onClick: async () => {
+														try {
+															await Git.Merge(
+																LocationStore.selectedRepository,
+																branch.gitName
+															);
+															refetchRepository(
+																LocationStore.selectedRepository
+															);
+														} catch (e) {
+															showErrorModal(e, 'error.git');
+															error(e);
+														}
+													}
+												},
+												{
+													type: 'item',
+													label: t('sidebar.contextMenu.openRemote'),
+													disabled: !(branch.hasUpstream || branch.isRemote),
+													onClick: () => {
+														const remote =
+															LocationStore.selectedRepository?.remote.replace(
+																/\.git$/,
+																''
+															);
+														if (
+															remote &&
+															(branch.hasUpstream || branch.isRemote)
+														) {
+															const url = `${remote}${branchFormatsForProvider(remote, branch.gitName.replace(/^origin\//, ''))}`;
+															openExternal(url);
+														}
+													}
+												}
+											]}
+										>
+											<button
+												aria-selected={branch.gitName === repository()?.branch}
+												role="option"
+												aria-label={branch.gitName}
+												classList={{
+													'branches-picker__list__item': true,
+													active: branch.gitName === repository()?.branch
+												}}
+												onClick={async () => {
+													try {
+														if (branch.gitName === repository()?.branch) {
+															return;
+														}
+														await Git.Checkout(
+															LocationStore.selectedRepository,
+															branch.gitName
+														);
+														refetchRepository(
+															LocationStore.selectedRepository
+														);
+													} catch (e) {
+														const msg =
+															typeof e === 'string'
+																? e
+																: (e as Error)?.message || '';
+														if (
+															msg
+																.toLowerCase()
+																.includes('resolve your current index')
+														) {
+															showConflictModal(
+																LocationStore.selectedRepository
+															);
+														} else {
+															showErrorModal(e, 'error.git');
+														}
+														error(e);
+													}
+												}}
+											>
+												<span class="branches-picker__list__item__name">
+													<span class="branches-picker__list__item__name__path">
+														{branch.path}
+													</span>
+													<span class="branches-picker__list__item__name__separator">
+														{branch.path ? '/' : ''}
+													</span>
+													<span class="branches-picker__list__item__name__branch">
+														{branch.name}
+													</span>
+												</span>
+												<div class="branches-picker__list__item__info">
+													{branch.relativeDate}
+												</div>
+											</button>
+										</Menu>
+									)}
+								</For>
+								<Show when={hasNewBranchInput()}>
+									<div
+										class="branches-picker__list__item branches-picker__list__item-new"
+										ref={setInputRef}
+									>
+										<input
+											type="text"
+											placeholder="branch-name"
+											spellcheck={false}
+											inputmode="text"
+											autocomplete="off"
+											value={newBranch()}
+											onInput={(e) => {
+												setNewBranch(
+													e.currentTarget.value
+														.replace(/\s/g, '-')
+														.replace(/[^a-zA-Z0-9-_/]/g, '')
+												);
+												e.currentTarget.value = newBranch();
+											}}
+											onKeyDown={async (e) => {
+												if (e.key === 'Escape') {
+													setHasNewBranchInput(false);
+												}
+												if (e.key === 'Enter') {
+													if (!newBranch()) return;
+													if (newBranch() === repository()?.branch) {
+														setNewBranch('');
+														return;
+													}
+													if (branches()?.find((b) => b.gitName === newBranch())) {
+														setNewBranch('');
+														return;
+													}
+													try {
+														await Git.CreateBranch(
+															LocationStore.selectedRepository,
+															newBranch(),
+															true
+														);
+														setHasNewBranchInput(false);
+														refetchRepository(
+															LocationStore.selectedRepository
+														);
+													} catch (e) {
+														showErrorModal(e, 'error.git');
+														error(e);
+													}
+												}
+											}}
+										/>
+										<button
+											class="branches-picker__list__item-new__hint"
+											aria-label={t('git.createBranch')}
+											role="button"
+											onClick={async () => {
+												const input = inputRef()?.querySelector('input');
+												if (!input?.value) return;
+												if (input.value === repository()?.branch) {
+													setNewBranch('');
+													return;
+												}
+												if (branches()?.find((b) => b.gitName === input.value)) {
+													setNewBranch('');
+													return;
+												}
+												try {
+													await Git.CreateBranch(
+														LocationStore.selectedRepository,
+														input.value,
+														true
+													);
+													setHasNewBranchInput(false);
+													refetchRepository(LocationStore.selectedRepository);
+												} catch (e) {
+													showErrorModal(e, 'error.git');
+													error(e);
+												}
+											}}
+										>
+											\u21A9
+										</button>
+									</div>
+								</Show>
+							</div>
+							<div class="branches-picker__actions">
+								<button
+									class="branches-picker__new"
+									onClick={() => {
+										setHasNewBranchInput((v) => !v);
+										requestAnimationFrame(() => {
+											inputRef()?.querySelector('input')?.focus();
+										});
+									}}
+								>
+									<Icon name={hasNewBranchInput() ? 'fold-up' : 'plus'} />
+									{hasNewBranchInput() ? t('git.hide') : t('git.newBranch')}
+								</button>
+								</div>
+						</div>
+					)}
+				>
+					{(p) => (
+						<button
+							ref={p.ref}
+							disabled={!repository() || branches() === null}
+							classList={{
+								'workspace__header__selector': true,
+								'workspace__header__selector--branch': true,
+								active: p.open()
+							}}
+							onMouseDown={(e) => p.toggle(e)}
+						>
+							<Icon name="git-branch" variant={16} />
+							<span class="workspace__header__selector__label">
+								{repository()?.branch || t('sidebar.noBranch')}
+							</span>
+							<Icon name="chevron-down" variant={16} />
+						</button>
+					)}
+				</Popout>
+			</div>
+
+			{/* Right section: Action buttons */}
+			<div class="workspace__header__spacer" />
+
+			<PanelButton
+				icon="git-merge-queue"
+				label={t('modal.sequentialMerge.sequentialMerge')}
+				disabled={!repository() || !branches()?.length}
+				id="workspace-sequential-merge"
+				onMouseDown={() => {
+					showSequentialMergeModal(repository(), branches() || []);
+				}}
+			/>
+
 			<PanelButton
 				loading={fetching()}
 				detail={renderDate(repository()?.lastFetched || new Date().getTime())()}
@@ -278,7 +749,6 @@ export default () => {
 										previous() || 'HEAD^1'
 									);
 
-									// restore draft if it was removed
 									if (
 										!DraftStore.getDraft(repository()).message &&
 										previousDetails?.message
@@ -649,378 +1119,6 @@ export default () => {
 					)}
 				</Popout>
 			</Show>
-			<div class="workspace__header__spacer" />
-			<Popout
-				trapFocus
-				position="bottom"
-				align="end"
-				open={branchPickerSignal}
-				body={() => (
-					<div class="branches-picker">
-						<div class="branches-picker__label" tabIndex={0}>
-							{t('git.branches', undefined, branches()?.length)}
-						</div>
-						<div class="branches-picker__search">
-							<Icon name="search" />
-							<input
-								type="text"
-								placeholder={t('git.searchBranches')}
-								spellcheck={false}
-								autocomplete="off"
-								value={branchSearch()}
-								onInput={(e) => setBranchSearch(e.currentTarget.value)}
-							/>
-						</div>
-						<div class="branches-picker__list">
-							<For each={filteredBranches()}>
-								{(branch) => (
-									<Menu
-										interfaceId="workspace-branch"
-										items={[
-											{
-												type: 'item',
-												label: t('git.deleteBranch'),
-												color: 'danger',
-												onClick: async () => {
-													try {
-														await Git.DeleteBranch(
-															LocationStore.selectedRepository,
-															branch.gitName
-														);
-
-														refetchRepository(
-															LocationStore.selectedRepository
-														);
-													} catch (e) {
-														showErrorModal(e, 'error.git');
-
-														error(e);
-													}
-												}
-											},
-											{
-												type: 'item',
-												label: t('git.cherryPick', {
-													current: repository()?.branch,
-													branch: branch.gitName
-												}),
-												disabled: branch.gitName === repository()?.branch,
-												onClick: () => {
-													showCherryPickModal(repository(), branch);
-												}
-											},
-											{
-												type: 'item',
-												label: t('git.mergeBranch', {
-													current: repository()?.branch,
-													branch: branch.gitName
-												}),
-												disabled: branch.gitName === repository()?.branch,
-												onClick: async () => {
-													try {
-														await Git.Merge(
-															LocationStore.selectedRepository,
-															branch.gitName
-														);
-
-														refetchRepository(
-															LocationStore.selectedRepository
-														);
-													} catch (e) {
-														showErrorModal(e, 'error.git');
-
-														error(e);
-													}
-												}
-											},
-											{
-												type: 'item',
-												label: t('sidebar.contextMenu.openRemote'),
-												disabled: !(branch.hasUpstream || branch.isRemote),
-												onClick: () => {
-													const remote =
-														LocationStore.selectedRepository?.remote.replace(
-															/\.git$/,
-															''
-														);
-
-													if (
-														remote &&
-														(branch.hasUpstream || branch.isRemote)
-													) {
-														const url = `${remote}${branchFormatsForProvider(remote, branch.gitName.replace(/^origin\//, ''))}`;
-
-														openExternal(url);
-													}
-												}
-											}
-										]}
-									>
-										<button
-											aria-selected={branch.gitName === repository()?.branch}
-											role="option"
-											aria-label={branch.gitName}
-											classList={{
-												'branches-picker__list__item': true,
-												active: branch.gitName === repository()?.branch
-											}}
-											onClick={async () => {
-												try {
-													if (branch.gitName === repository()?.branch) {
-														return;
-													}
-
-													await Git.Checkout(
-														LocationStore.selectedRepository,
-														branch.gitName
-													);
-
-													refetchRepository(
-														LocationStore.selectedRepository
-													);
-												} catch (e) {
-													const msg =
-														typeof e === 'string'
-															? e
-															: (e as Error)?.message || '';
-													if (
-														msg
-															.toLowerCase()
-															.includes(
-																'resolve your current index'
-															)
-													) {
-														showConflictModal(
-															LocationStore.selectedRepository
-														);
-													} else {
-														showErrorModal(e, 'error.git');
-													}
-
-													error(e);
-												}
-											}}
-										>
-											<div class="branches-picker__list__item__name">
-												<div class="branches-picker__list__item__name__path">
-													{branch.path}
-												</div>
-												<div class="branches-picker__list__item__name__separator">
-													{branch.path ? '/' : ''}
-												</div>
-												<div class="branches-picker__list__item__name__branch">
-													{branch.name}
-												</div>
-											</div>
-											<div class="branches-picker__list__item__info">
-												{branch.relativeDate}
-											</div>
-										</button>
-									</Menu>
-								)}
-							</For>
-							<Show when={hasNewBranchInput()}>
-								<div
-									class="branches-picker__list__item branches-picker__list__item-new"
-									ref={setInputRef}
-								>
-									<input
-										type="text"
-										placeholder="branch-name"
-										spellcheck={false}
-										inputmode="text"
-										autocomplete="off"
-										value={newBranch()}
-										onInput={(e) => {
-											setNewBranch(
-												e.currentTarget.value
-													.replace(/\s/g, '-')
-													.replace(/[^a-zA-Z0-9-_/]/g, '')
-											);
-
-											e.currentTarget.value = newBranch();
-										}}
-										onKeyDown={async (e) => {
-											if (e.key === 'Escape') {
-												setHasNewBranchInput(false);
-											}
-
-											if (e.key === 'Enter') {
-												if (!newBranch()) return;
-
-												if (newBranch() === repository()?.branch) {
-													setNewBranch('');
-
-													return;
-												}
-
-												if (
-													branches()?.find(
-														(b) => b.gitName === newBranch()
-													)
-												) {
-													setNewBranch('');
-
-													return;
-												}
-
-												try {
-													await Git.CreateBranch(
-														LocationStore.selectedRepository,
-														newBranch(),
-														true
-													);
-
-													setHasNewBranchInput(false);
-
-													refetchRepository(
-														LocationStore.selectedRepository
-													);
-												} catch (e) {
-													showErrorModal(e, 'error.git');
-
-													error(e);
-												}
-											}
-										}}
-									/>
-									<button
-										class="branches-picker__list__item-new__hint"
-										aria-label={t('git.createBranch')}
-										role="button"
-										onClick={async () => {
-											const input = inputRef()?.querySelector('input');
-
-											if (!input?.value) return;
-
-											if (input.value === repository()?.branch) {
-												setNewBranch('');
-
-												return;
-											}
-
-											if (
-												branches()?.find((b) => b.gitName === input.value)
-											) {
-												setNewBranch('');
-
-												return;
-											}
-
-											try {
-												await Git.CreateBranch(
-													LocationStore.selectedRepository,
-													input.value,
-													true
-												);
-
-												setHasNewBranchInput(false);
-
-												refetchRepository(LocationStore.selectedRepository);
-											} catch (e) {
-												showErrorModal(e, 'error.git');
-
-												error(e);
-											}
-										}}
-									>
-										↩
-									</button>
-								</div>
-							</Show>
-						</div>
-						<div class="branches-picker__actions">
-							<button
-								class="branches-picker__new"
-								onClick={() => {
-									setHasNewBranchInput((v) => !v);
-
-									requestAnimationFrame(() => {
-										inputRef()?.querySelector('input')?.focus();
-									});
-								}}
-							>
-								<Icon name={hasNewBranchInput() ? 'fold-up' : 'plus'} />
-								{hasNewBranchInput() ? t('git.hide') : t('git.newBranch')}
-							</button>
-							<button
-								class="branches-picker__new"
-								onClick={() => {
-									branchPickerSignal[1](false);
-									showSequentialMergeModal(
-										repository(),
-										branches() || []
-									);
-								}}
-							>
-								<Icon name="git-merge-queue" />
-								{t('modal.sequentialMerge.sequentialMerge')}
-							</button>
-						</div>
-					</div>
-				)}
-			>
-				{(p) => (
-					<PanelButton
-						disabled={!repository() || branches() === null}
-						ref={p.ref}
-						icon="git-branch"
-						iconVariant={iconVariant()}
-						name="Switch branch"
-						id="workspace-branch"
-						className={p.open() ? 'active' : ''}
-						onMouseDown={(e) => {
-							p.toggle(e);
-						}}
-					/>
-				)}
-			</Popout>
-			<Popout
-				position="bottom"
-				align="end"
-				open={onboardingStepState}
-				body={() => (
-					<div class="onboarding-tooltip">
-						<div class="onboarding-tooltip__title">
-							{t('onboarding.history.tooltip')}
-						</div>
-						<div class="onboarding-tooltip__steps">
-							<For each={[1, 2, 3, 4, 5]}>
-								{(i) => (
-									<div
-										classList={{
-											'onboarding-tooltip__step': true,
-											active: onboarding()!.step === i
-										}}
-									/>
-								)}
-							</For>
-						</div>
-					</div>
-				)}
-			>
-				{(p) => (
-					<PanelButton
-						ref={p.ref}
-						icon="history"
-						iconVariant={iconVariant()}
-						name="Toggle history"
-						id="workspace-history"
-						className={historyOpen() ? 'active' : ''}
-						onMouseDown={() => {
-							if (onboardingStepState[0]()) {
-								p.hide();
-
-								OnboardingStore.setStep(5);
-
-								finishTour();
-							}
-
-							LocationStore.setHistoryOpen(!historyOpen());
-						}}
-					/>
-				)}
-			</Popout>
 		</div>
 	);
 };

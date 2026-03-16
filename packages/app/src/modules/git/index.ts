@@ -28,7 +28,7 @@ export { Push } from './push';
 export { Diff } from './diff';
 export { Init } from './init';
 export { Pull } from './pull';
-export { Log } from './log';
+export { Log, MergeBase, DefaultBranch } from './log';
 
 export { type GitParams } from './core';
 

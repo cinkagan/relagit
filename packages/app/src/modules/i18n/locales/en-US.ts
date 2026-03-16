@@ -357,7 +357,12 @@ export default {
 			viewDetails: 'View Details',
 			cherryPick: 'Cherry Pick',
 			cherryPickSelected: 'Cherry Pick {{count}} commits',
-			copySelectedSha: 'Copy {{count}} SHAs'
+			copySelectedSha: 'Copy {{count}} SHAs',
+			branchTag: 'BRANCH / TAG',
+			graph: 'GRAPH',
+			commitMessage: 'COMMIT MESSAGE',
+			author: 'AUTHOR',
+			dateTime: 'COMMIT DATE / TIME'
 		}
 	},
 	palette: {

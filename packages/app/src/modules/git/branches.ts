@@ -20,7 +20,7 @@ export const ListBranches = async (repository: Repository | undefined): Promise<
 	const res = await Git({
 		directory: repository.path,
 		command: 'branch',
-		args: ['-a', '--no-color', '"--format=%(HEAD) %(refname:short) %(committerdate:relative)"']
+		args: ['-a', '--no-color', '--sort=-committerdate', '"--format=%(HEAD) %(refname:short) %(committerdate:relative)"']
 	});
 
 	const map = res
