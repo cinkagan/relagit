@@ -12,7 +12,10 @@ export type Branch = {
 	hasUpstream: boolean;
 };
 
-export const ListBranches = async (repository: Repository | undefined): Promise<Branch[]> => {
+export const ListBranches = async (
+	repository: Repository | undefined,
+	options?: { includeAllRemotes?: boolean }
+): Promise<Branch[]> => {
 	if (!repository) {
 		return [];
 	}
@@ -43,7 +46,7 @@ export const ListBranches = async (repository: Repository | undefined): Promise<
 				res.includes(`  ${parts[0].replace('origin/', '').trim()} `) ||
 				res.includes(`* ${parts[0].replace('origin/', '').trim()} `);
 
-			if (isRemote && hasNonUpstream) return null;
+			if (!options?.includeAllRemotes && isRemote && hasNonUpstream) return null;
 
 			const fullName = parts[0].trim();
 			const slashParts = fullName.split('/');

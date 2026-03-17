@@ -5,7 +5,7 @@ import { Git } from './core';
 export const Fetch = (repository: Repository | string | null | undefined) => {
 	if (!repository) return;
 
-	Git({
+	return Git({
 		directory: typeof repository === 'string' ? repository : repository.path,
 		command: 'fetch',
 		args: []

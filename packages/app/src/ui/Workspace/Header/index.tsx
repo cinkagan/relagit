@@ -715,8 +715,10 @@ export default () => {
 				label={t('modal.sequentialMerge.sequentialMerge')}
 				disabled={!repository() || !branches()?.length}
 				id="workspace-sequential-merge"
-				onMouseDown={() => {
-					showSequentialMergeModal(repository(), branches() || []);
+				onMouseDown={async () => {
+					await Git.Fetch(repository());
+					const updatedBranches = await Git.ListBranches(repository(), { includeAllRemotes: true });
+					showSequentialMergeModal(repository(), updatedBranches || []);
 				}}
 			/>
 
